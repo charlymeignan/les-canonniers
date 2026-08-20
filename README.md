@@ -120,20 +120,24 @@ la méthode sont décrits dans
 
 Le jeu est un site statique : aucune compilation, aucun serveur applicatif.
 
-Un workflow GitHub Pages est fourni (`.github/workflows/pages.yml`). Il lance les
-tests du moteur, puis publie uniquement ce que le navigateur charge :
-`index.html`, `css/`, `js/` et `assets/cards/`. **Le dossier
-`assets/user-files/` — scan du livret et photos du matériel — n'est pas mis en
-ligne** : c'est de la documentation de travail, pas du contenu à rediffuser.
+`tools/build-site.sh` assemble dans `_site/` ce que le navigateur charge
+réellement — `index.html`, `css/`, `js/`, `assets/cards/` — et rien d'autre. Ce
+détour n'est pas cosmétique : les hébergeurs statiques publient par défaut la
+racine du dépôt, ce qui exposerait `assets/user-files/`, c'est-à-dire le scan du
+livret et les photos du matériel. Ce dossier reste documentation de travail et
+n'est jamais mis en ligne.
 
-Pour l'activer : *Settings → Pages → Source : **GitHub Actions***. Le
-déploiement se déclenche ensuite à chaque push. GitHub Pages est gratuit sur les
-dépôts publics ; sur un dépôt privé il faut un compte payant.
+**Netlify ou Cloudflare Pages** — gratuits, y compris sur un dépôt privé. C'est
+l'option la plus simple ici. `netlify.toml` est déjà configuré ; sur Cloudflare
+Pages, renseigner à la main : commande de build `bash tools/build-site.sh`,
+répertoire de sortie `_site`.
 
-Tout autre hébergement statique convient aussi — Cloudflare Pages, Netlify,
-Vercel : connecter le dépôt, laisser la commande de build vide, répertoire de
-publication à la racine. Les chemins du projet sont tous relatifs, le site
-fonctionne donc aussi bien à la racine d'un domaine que dans un sous-répertoire.
+**GitHub Pages** — `.github/workflows/pages.yml` lance les tests du moteur puis
+déploie. À activer dans *Settings → Pages → Source : GitHub Actions*. Gratuit
+sur un dépôt public seulement ; sur un dépôt privé il faut un compte payant.
+
+Les chemins du projet sont tous relatifs : le site fonctionne aussi bien à la
+racine d'un domaine que dans un sous-répertoire.
 
 ## Points de règle arbitrés
 

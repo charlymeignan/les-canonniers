@@ -36,14 +36,7 @@ jobs:
           node test/simulation.mjs 100
 
       - name: Rassembler le site
-        run: |
-          mkdir -p _site
-          cp index.html _site/
-          cp -r css js _site/
-          mkdir -p _site/assets
-          cp -r assets/cards _site/assets/
-          # Empêche GitHub Pages de faire passer le site par Jekyll.
-          touch _site/.nojekyll
+        run: bash tools/build-site.sh
 
       - uses: actions/upload-pages-artifact@v3
         with:

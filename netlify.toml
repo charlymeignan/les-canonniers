@@ -1,0 +1,28 @@
+# Déploiement Netlify.
+#
+# La commande de build n'assemble pas du code : elle sélectionne les fichiers à
+# publier. Sans elle, Netlify servirait la racine du dépôt, donc aussi
+# assets/user-files/ (scan du livret, photos du matériel), qui n'a rien à faire
+# en ligne.
+
+[build]
+  command = "bash tools/build-site.sh"
+  publish = "_site"
+
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+
+# Les modules et la feuille de style changent à chaque déploiement : on laisse
+# le navigateur revalider plutôt que de servir une version périmée.
+[[headers]]
+  for = "/js/*"
+  [headers.values]
+    Cache-Control = "public, max-age=0, must-revalidate"
+
+[[headers]]
+  for = "/css/*"
+  [headers.values]
+    Cache-Control = "public, max-age=0, must-revalidate"
