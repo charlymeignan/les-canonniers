@@ -1,0 +1,894 @@
+/* =============================================================================
+   LES CANONNIERS — feuille de style
+   Direction artistique : impression carton/papier Edmond Dujardin, années 60.
+   Palette relevée sur les photos du kit :
+     - vert plateau/boîte  #1b6b3d / #124a2a
+     - crème carte         #f2ecd8 / #fbf7ea
+     - noir d'encre        #171310
+     - rouge cartouche     #b5312f
+     - or ballon           #d3a03c
+     - bleu dos de carte   #213e73
+   Aucun gradient décoratif, aucune ombre diffuse : les seules ombres sont des
+   ombres portées dures, comme du carton posé sur une table.
+   ========================================================================== */
+
+@import url('https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Bitter:ital,wght@0,400;0,600;0,700;1,400&display=swap');
+
+:root {
+  --cream: #f2ecd8;
+  --cream-dark: #e4d9bd;
+  --paper: #fbf7ea;
+  --ink: #171310;
+  --ink-soft: #514538;
+  --red: #b5312f;
+  --green: #1b6b3d;
+  --green-dark: #124a2a;
+  --green-light: #2b8a52;
+  --gold: #d3a03c;
+  --navy: #213e73;
+  --navy-dark: #16294d;
+
+  --board-green: #23794a;
+  --board-white: #e5e3d8;
+
+  --shadow-hard: 3px 3px 0 rgba(23, 19, 16, 0.35);
+  --shadow-card: 2px 3px 0 rgba(23, 19, 16, 0.26);
+
+  /* Oswald (condensé, très proche des titrages de la boîte) avec un repli
+     système condensé pour rester lisible hors ligne. */
+  --display: 'Oswald', 'Haettenschweiler', 'Arial Narrow', 'Liberation Sans Narrow', sans-serif;
+  --serif: 'Bitter', 'Rockwell', 'Bookman Old Style', Georgia, serif;
+
+  --safe-b: env(safe-area-inset-bottom, 0px);
+  --safe-t: env(safe-area-inset-top, 0px);
+}
+
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  overscroll-behavior: none;
+}
+
+body {
+  background: var(--cream);
+  /* Trame d'impression offset très fine, comme le carton du plateau. */
+  background-image: radial-gradient(circle at 1px 1px, rgba(23, 19, 16, 0.05) 1px, transparent 0);
+  background-size: 4px 4px;
+  color: var(--ink);
+  font-family: var(--serif);
+  font-size: 15px;
+  line-height: 1.4;
+  -webkit-font-smoothing: antialiased;
+}
+
+button { font: inherit; color: inherit; border: none; background: none; cursor: pointer; }
+
+#app {
+  max-width: 540px;
+  margin: 0 auto;
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  background: var(--cream);
+  box-shadow: 0 0 0 1px rgba(23, 19, 16, 0.12);
+}
+
+.screen { display: none; flex-direction: column; flex: 1; min-height: 0; }
+.screen.is-active { display: flex; }
+
+/* L'écran de jeu tient dans la fenêtre : la main reste toujours atteignable
+   au pouce, sans défilement de page. */
+#screen-game.is-active { height: 100dvh; overflow: hidden; }
+
+/* ============================================================== ACCUEIL ==== */
+
+.title-block {
+  background: var(--green);
+  color: var(--cream);
+  padding: calc(32px + var(--safe-t)) 22px 24px;
+  position: relative;
+  border-bottom: 6px solid var(--ink);
+  overflow: hidden;
+}
+
+/* Bandeau vertical bicolore repris de la couverture du livret. */
+.title-block::before {
+  content: '';
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 33%;
+  background: var(--green-dark);
+}
+
+.title-block > * { position: relative; }
+
+.title-kicker {
+  font-family: var(--display);
+  font-weight: 500;
+  font-size: 14px;
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+  margin: 0 0 4px;
+  opacity: 0.9;
+}
+
+.title-main {
+  font-family: var(--display);
+  font-weight: 700;
+  font-size: clamp(38px, 12.5vw, 58px);
+  line-height: 0.86;
+  letter-spacing: -0.015em;
+  margin: 0;
+  text-transform: lowercase;
+  color: var(--paper);
+}
+
+.title-sub {
+  font-family: var(--display);
+  font-weight: 400;
+  font-size: clamp(16px, 4.6vw, 21px);
+  letter-spacing: 0.05em;
+  margin: 7px 0 0;
+  text-transform: lowercase;
+}
+
+.title-editor {
+  font-family: var(--display);
+  font-size: 10px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  margin: 16px 0 0;
+  opacity: 0.78;
+}
+
+.home-body { padding: 22px 20px calc(28px + var(--safe-b)); flex: 1; }
+
+.field-label {
+  display: block;
+  font-family: var(--display);
+  font-size: 11px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  margin: 0 0 9px;
+}
+
+.mode-switch {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  border: 3px solid var(--ink);
+  margin-bottom: 22px;
+}
+
+.mode-switch button {
+  padding: 13px 8px;
+  font-family: var(--display);
+  font-size: 15px;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  background: var(--paper);
+  color: var(--ink);
+}
+.mode-switch button + button { border-left: 3px solid var(--ink); }
+.mode-switch button[aria-pressed='true'] { background: var(--ink); color: var(--cream); }
+
+.player-inputs { display: flex; flex-direction: column; gap: 9px; margin-bottom: 24px; }
+
+.player-row {
+  display: flex;
+  border: 3px solid var(--ink);
+  background: var(--paper);
+}
+
+.player-chip {
+  display: flex;
+  align-items: center;
+  padding: 0 12px;
+  font-family: var(--display);
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--paper);
+  min-width: 72px;
+}
+.player-chip[data-team='vert'] { background: var(--green); }
+.player-chip[data-team='blanc'] { background: var(--ink); }
+
+.player-row input {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  padding: 12px;
+  font-family: var(--serif);
+  font-size: 16px; /* 16px minimum : évite le zoom automatique iOS */
+  background: transparent;
+  color: var(--ink);
+}
+.player-row input:focus { outline: 2px solid var(--gold); outline-offset: -2px; }
+
+.btn {
+  display: block;
+  width: 100%;
+  padding: 16px;
+  font-family: var(--display);
+  font-weight: 600;
+  font-size: 17px;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  border: 3px solid var(--ink);
+  background: var(--red);
+  color: var(--paper);
+  box-shadow: var(--shadow-hard);
+  transition: transform 0.06s, box-shadow 0.06s;
+}
+.btn:active { transform: translate(3px, 3px); box-shadow: 0 0 0 rgba(0, 0, 0, 0); }
+.btn:disabled { opacity: 0.4; box-shadow: none; }
+.btn--ghost { background: var(--paper); color: var(--ink); }
+.btn--green { background: var(--green); }
+.btn--small { padding: 11px 12px; font-size: 13px; letter-spacing: 0.1em; border-width: 2.5px; }
+
+.home-links { margin-top: 14px; }
+
+.home-note {
+  margin: 24px 0 0;
+  padding-top: 16px;
+  border-top: 2px solid rgba(23, 19, 16, 0.2);
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--ink-soft);
+}
+
+/* ================================================================ BARRE ==== */
+
+.topbar {
+  display: flex;
+  background: var(--ink);
+  color: var(--cream);
+  flex: none;
+  padding-top: var(--safe-t);
+}
+
+.score-side {
+  flex: 1 1 0;
+  min-width: 0;
+  padding: 8px 10px;
+  display: flex;
+  align-items: baseline;
+  gap: 7px;
+}
+.score-side[data-team='vert'] { background: var(--green); color: var(--paper); }
+.score-side[data-team='blanc'] { background: var(--board-white); color: var(--ink); }
+
+.score-name {
+  font-family: var(--display);
+  font-size: 11px;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+
+.score-value {
+  font-family: var(--display);
+  font-weight: 700;
+  font-size: 23px;
+  line-height: 1;
+  margin-left: auto;
+  flex: none;
+}
+
+.topbar-actions { display: flex; flex: none; }
+.topbar-actions button {
+  width: 40px;
+  display: grid;
+  place-items: center;
+  color: var(--cream);
+  font-family: var(--display);
+  font-size: 17px;
+  border-left: 2px solid rgba(242, 236, 216, 0.22);
+}
+
+/* ============================================================== TERRAIN ==== */
+
+.pitch-wrap { padding: 11px 12px 0; flex: none; }
+
+.pitch {
+  position: relative;
+  height: clamp(120px, 21dvh, 190px);
+  border: 3px solid var(--ink);
+  box-shadow: var(--shadow-hard);
+  overflow: hidden;
+  background: var(--board-white);
+}
+
+/* Le plateau photographié : moitié haute verte, moitié basse blanc cassé,
+   surfaces de réparation en trait épais dans la couleur opposée, rond central
+   bicolore à cheval sur la ligne médiane. */
+.pitch-half { position: absolute; left: 0; right: 0; height: 50%; }
+.pitch-half--top { top: 0; background: var(--board-green); }
+.pitch-half--bottom { bottom: 0; background: var(--board-white); }
+
+.pitch-box {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 42%;
+  height: 26%;
+  border: 4px solid;
+}
+.pitch-box--top { top: -4px; border-color: var(--board-white); border-top-color: transparent; }
+.pitch-box--bottom { bottom: -4px; border-color: var(--board-green); border-bottom-color: transparent; }
+
+.pitch-circle {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  height: 42%;
+  aspect-ratio: 1;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  overflow: hidden;
+}
+.pitch-circle::before,
+.pitch-circle::after { content: ''; position: absolute; left: 0; right: 0; height: 50%; }
+.pitch-circle::before { top: 0; background: var(--board-white); }
+.pitch-circle::after { bottom: 0; background: var(--board-green); }
+
+/* Mention gravée sur la tôle, calée juste sous la ligne médiane comme sur le
+   plateau photographié — hors de la surface de réparation. */
+.pitch-mark {
+  position: absolute;
+  right: 6px;
+  bottom: 4px;
+  font-family: var(--display);
+  font-size: 7px;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: rgba(23, 19, 16, 0.4);
+}
+
+/* Ballon aimanté : demi-sphère cuir clair posée sur la tôle. */
+.ball {
+  position: absolute;
+  left: 50%;
+  height: 26%;
+  aspect-ratio: 1;
+  transform: translate(-50%, -50%);
+  transition: top 0.45s cubic-bezier(0.34, 1.28, 0.64, 1);
+  filter: drop-shadow(3px 4px 0 rgba(23, 19, 16, 0.28));
+  z-index: 2;
+}
+.ball svg { width: 100%; height: 100%; display: block; }
+.ball[data-camp='vert'] { top: 25%; }
+.ball[data-camp='centre'] { top: 50%; }
+.ball[data-camp='blanc'] { top: 75%; }
+
+.pitch-tag {
+  position: absolute;
+  left: 7px;
+  font-family: var(--display);
+  font-size: 9px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+.pitch-tag--top { top: 5px; color: var(--board-white); }
+.pitch-tag--bottom { bottom: 5px; color: var(--board-green); }
+
+/* ------------------------------------------------------------- compteurs -- */
+
+.counters {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px 0;
+  flex: none;
+  font-family: var(--display);
+  font-size: 10px;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+.counters span { display: flex; align-items: baseline; gap: 4px; }
+.counters b { font-size: 14px; color: var(--ink); font-weight: 600; }
+.counters .sep { width: 1px; height: 13px; background: rgba(23, 19, 16, 0.25); }
+
+/* ==================================================== PILE ET CONSIGNE ==== */
+
+.table-row {
+  display: grid;
+  grid-template-columns: 78px 1fr;
+  gap: 11px;
+  padding: 9px 12px 11px;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.stack-col { display: flex; flex-direction: column; min-height: 0; }
+.stack-col .mini-card { flex: none; aspect-ratio: 5 / 7; }
+
+.stack-label {
+  font-family: var(--display);
+  font-size: 9px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  margin-bottom: 4px;
+}
+
+.mini-card {
+  border: 2.5px solid var(--ink);
+  background: var(--paper);
+  box-shadow: var(--shadow-card);
+  overflow: hidden;
+  position: relative;
+  flex: 1;
+}
+
+/* Dos de carte : bleu marine, terrain stylisé en trame de points blancs,
+   comme sur la photo de l'intérieur de la boîte. */
+.card-back {
+  background: var(--navy);
+  background-image: radial-gradient(circle at 1.2px 1.2px, rgba(247, 244, 234, 0.5) 1.2px, transparent 0);
+  background-size: 5px 5px;
+}
+.card-back::before {
+  content: '';
+  position: absolute;
+  inset: 9%;
+  border: 2px solid rgba(247, 244, 234, 0.8);
+}
+.card-back::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 32%;
+  aspect-ratio: 1;
+  transform: translate(-50%, -50%);
+  border: 2px solid rgba(247, 244, 234, 0.8);
+  border-radius: 50%;
+  background: var(--navy-dark);
+}
+
+.brief {
+  border: 3px solid var(--ink);
+  background: var(--paper);
+  box-shadow: var(--shadow-card);
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.brief-head {
+  background: var(--ink);
+  color: var(--cream);
+  padding: 6px 10px;
+  font-family: var(--display);
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  flex: none;
+}
+.brief-turn { color: var(--gold); }
+
+.brief-body { padding: 9px 10px; overflow-y: auto; min-height: 0; }
+
+.brief-exposed {
+  font-family: var(--display);
+  font-size: 17px;
+  letter-spacing: 0.01em;
+  text-transform: uppercase;
+  margin: 0 0 7px;
+  padding-bottom: 6px;
+  border-bottom: 2px solid rgba(23, 19, 16, 0.16);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.brief-mode {
+  font-family: var(--display);
+  font-size: 9px;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+  background: var(--red);
+  color: var(--paper);
+  padding: 2px 6px;
+}
+.brief-mode[data-team='vert'] { background: var(--green); }
+.brief-mode[data-team='blanc'] { background: var(--ink); }
+
+/* La consigne se lit d'un coup d'œil : pas de capitales sur tout le bloc. */
+.brief-legal { margin: 0; font-size: 13.5px; line-height: 1.45; color: var(--ink-soft); }
+.brief-legal strong { color: var(--ink); font-weight: 700; }
+.brief-legal em { color: var(--red); font-style: normal; font-weight: 700; }
+
+.brief-chips { margin-top: 6px; display: flex; flex-wrap: wrap; gap: 4px; }
+.brief-chip {
+  font-family: var(--display);
+  font-size: 10px;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  border: 1.5px solid var(--ink);
+  padding: 1px 5px;
+  background: var(--cream);
+}
+.brief-chip[data-has='1'] { background: var(--gold); border-color: var(--ink); }
+
+/* ============================================================== LA MAIN ==== */
+
+.hand-section {
+  border-top: 4px solid var(--ink);
+  background: var(--cream-dark);
+  padding-bottom: var(--safe-b);
+  flex: none;
+}
+
+.hand-head {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 7px 12px;
+  background: var(--ink);
+  color: var(--cream);
+}
+
+.hand-owner {
+  font-family: var(--display);
+  font-size: 13px;
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.hand-team-dot { width: 11px; height: 11px; border: 2px solid var(--cream); flex: none; }
+.hand-team-dot[data-team='vert'] { background: var(--green-light); }
+.hand-team-dot[data-team='blanc'] { background: var(--board-white); }
+
+.hand-count {
+  margin-left: auto;
+  font-family: var(--display);
+  font-size: 10px;
+  letter-spacing: 0.09em;
+  opacity: 0.85;
+  flex: none;
+}
+
+.hand-scroll {
+  display: flex;
+  align-items: stretch;
+  gap: 8px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 10px 12px 11px;
+  scroll-snap-type: x proximity;
+  -webkit-overflow-scrolling: touch;
+}
+.hand-scroll::-webkit-scrollbar { height: 0; }
+/* Cartes dimensionnées par la hauteur (cible tactile confortable au pouce),
+   au format 5:7 du carton d'origine. */
+.hand-scroll .card {
+  flex: 0 0 auto;
+  height: clamp(150px, 21dvh, 194px);
+  width: auto;
+  aspect-ratio: 5 / 7;
+  scroll-snap-align: center;
+}
+
+.actions { display: flex; gap: 8px; padding: 0 12px 11px; }
+.actions .btn { margin: 0; }
+
+/* ================================================================ CARTE ==== */
+
+/* Structure relevée sur les photos : fond crème, monogramme ou pictogramme dans
+   un carré de couleur en haut à gauche, intitulé en gras juste à côté, listes de
+   succession en petit corps (noir = suites de son équipe, rouge = ripostes de
+   l'adversaire), illustration à droite, et répétition tête-bêche en bas —
+   comme une vraie carte à jouer. */
+
+.card {
+  position: relative;
+  aspect-ratio: 5 / 7;
+  background: var(--paper);
+  border: 2px solid var(--ink);
+  border-radius: 5px;
+  box-shadow: var(--shadow-card);
+  overflow: hidden;
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 0;
+  transition: transform 0.1s, box-shadow 0.1s;
+}
+
+.card--playable { box-shadow: 0 0 0 3px var(--gold), var(--shadow-card); }
+.card--playable:active { transform: translateY(2px); }
+.card--muted { opacity: 0.62; filter: saturate(0.55); }
+.card--selected {
+  transform: translateY(-9px);
+  box-shadow: 0 0 0 3px var(--red), 4px 9px 0 rgba(23, 19, 16, 0.3);
+}
+
+.card-corner {
+  position: absolute;
+  display: flex;
+  align-items: flex-start;
+  gap: 4px;
+  padding: 4px 5px;
+  width: 82%;
+}
+.card-corner--tl { top: 0; left: 0; }
+.card-corner--br { bottom: 0; right: 0; transform: rotate(180deg); }
+
+.card-badge {
+  flex: none;
+  width: 17px;
+  height: 17px;
+  display: grid;
+  place-items: center;
+  font-family: var(--display);
+  font-weight: 700;
+  font-size: 13px;
+  line-height: 1;
+  color: var(--paper);
+  overflow: hidden;
+}
+.card-badge[data-color='green'] { background: var(--green); }
+.card-badge[data-color='red'] { background: var(--red); }
+.card-badge[data-color='gold'] { background: var(--gold); color: var(--ink); }
+.card-badge[data-color='ink'] { background: var(--ink); color: var(--gold); }
+.card-badge svg { width: 100%; height: 100%; display: block; }
+.card-badge--icon { background: none !important; width: 19px; height: 19px; }
+/* Le cartouche « BUT » est écrit en toutes lettres, comme sur la carte réelle. */
+.card-badge--wide { width: auto; min-width: 17px; padding: 1px 4px; font-size: 10px; letter-spacing: 0.03em; }
+
+.card-title {
+  font-family: var(--display);
+  font-weight: 600;
+  font-size: 11.5px;
+  line-height: 1.03;
+  text-transform: lowercase;
+  color: var(--ink);
+  padding-top: 1px;
+}
+
+/* Colonne de texte à gauche, illustration à droite : jamais de superposition. */
+.card-illus {
+  position: absolute;
+  inset: 21% 3% 20% 40%;
+  pointer-events: none;
+}
+.card-illus svg { width: 100%; height: 100%; display: block; }
+.card--no-lists .card-illus { inset: 22% 10% 21%; }
+
+.card-lists {
+  position: absolute;
+  left: 5px;
+  top: 22%;
+  width: 40%;
+  font-family: var(--serif);
+  font-size: 4.6px;
+  line-height: 1.36;
+  pointer-events: none;
+}
+.card-lists .own { color: var(--ink); }
+.card-lists .rival { color: var(--red); margin-top: 3px; }
+.card-lists span { display: block; }
+
+.card-subtitle {
+  position: absolute;
+  left: 5px;
+  top: 17%;
+  width: 44%;
+  font-family: var(--serif);
+  font-size: 5px;
+  font-style: italic;
+  line-height: 1.25;
+  color: var(--ink-soft);
+}
+
+/* Carte affichée en grand (pile de jeu, sélecteur de joker). */
+.card--lg .card-title { font-size: 15px; }
+.card--lg .card-badge { width: 23px; height: 23px; font-size: 17px; }
+.card--lg .card-badge--icon { width: 25px; height: 25px; }
+.card--lg .card-badge--wide { width: auto; padding: 1px 5px; font-size: 13px; }
+.card--lg .card-lists { font-size: 6.2px; }
+.card--lg .card-subtitle { font-size: 6.6px; }
+.card--lg .card-corner { padding: 6px; gap: 5px; }
+
+.card--joker .card-illus { inset: 28% 22% 28%; }
+
+.card-empty {
+  display: grid;
+  place-items: center;
+  background: repeating-linear-gradient(45deg, var(--cream-dark) 0 6px, var(--cream) 6px 12px);
+  font-family: var(--display);
+  font-size: 9px;
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  text-align: center;
+  padding: 6px;
+}
+
+/* ============================================================= OVERLAYS ==== */
+
+.overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(23, 19, 16, 0.86);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  z-index: 40;
+}
+.overlay.is-open { display: flex; }
+
+.overlay-panel {
+  background: var(--paper);
+  border: 4px solid var(--ink);
+  box-shadow: 6px 6px 0 rgba(0, 0, 0, 0.4);
+  max-width: 400px;
+  width: 100%;
+  max-height: 84dvh;
+  overflow-y: auto;
+}
+
+.overlay-head {
+  background: var(--green);
+  color: var(--paper);
+  padding: 13px 16px;
+  font-family: var(--display);
+  font-size: 16px;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+.overlay-head[data-tone='red'] { background: var(--red); }
+.overlay-head[data-tone='ink'] { background: var(--ink); }
+.overlay-head[data-tone='gold'] { background: var(--gold); color: var(--ink); }
+
+.overlay-body { padding: 16px; }
+.overlay-body p { margin: 0 0 11px; }
+.overlay-body p:last-child { margin-bottom: 0; }
+.overlay-actions { padding: 0 16px 16px; display: flex; flex-direction: column; gap: 8px; }
+
+.pass-panel { text-align: center; }
+.pass-name {
+  font-family: var(--display);
+  font-size: 28px;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  margin: 5px 0 3px;
+}
+.pass-team {
+  font-family: var(--display);
+  font-size: 11px;
+  letter-spacing: 0.19em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  margin: 0 0 14px;
+}
+
+.choice-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.choice-grid .card { width: 100%; }
+
+/* ================================================================= AIDE ==== */
+
+.help-body { padding: 18px 18px calc(28px + var(--safe-b)); overflow-y: auto; }
+.help-body h2 {
+  font-family: var(--display);
+  font-size: 12px;
+  letter-spacing: 0.19em;
+  text-transform: uppercase;
+  margin: 26px 0 9px;
+  padding-bottom: 5px;
+  border-bottom: 3px solid var(--ink);
+}
+.help-body h2:first-of-type { margin-top: 0; }
+.help-body p, .help-body li { font-size: 14px; line-height: 1.55; }
+.help-body ul { margin: 0 0 12px; padding-left: 18px; }
+.help-body li { margin-bottom: 5px; }
+.help-lead { color: var(--ink-soft); font-size: 13px; }
+
+.help-table { width: 100%; border-collapse: collapse; font-size: 11.5px; }
+.help-table th, .help-table td {
+  border: 1.5px solid var(--ink);
+  padding: 5px 6px;
+  text-align: left;
+  vertical-align: top;
+}
+.help-table th {
+  font-family: var(--display);
+  font-size: 10px;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  background: var(--green);
+  color: var(--paper);
+}
+.help-table td.rival { color: var(--red); }
+.help-table tbody tr:nth-child(even) { background: rgba(23, 19, 16, 0.04); }
+.help-name { font-family: var(--display); text-transform: uppercase; font-size: 11px; letter-spacing: 0.03em; }
+.help-scroll { overflow-x: auto; margin-bottom: 14px; }
+
+.gallery { display: grid; grid-template-columns: repeat(3, 1fr); gap: 11px; }
+.gallery-qty {
+  font-family: var(--display);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-align: center;
+  color: var(--ink-soft);
+  margin-top: 4px;
+}
+
+.log-list { list-style: none; margin: 0; padding: 0; font-size: 13px; }
+.log-list li {
+  padding: 6px 0;
+  border-bottom: 1.5px solid rgba(23, 19, 16, 0.14);
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+}
+.log-team {
+  font-family: var(--display);
+  font-size: 9px;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  padding: 1px 5px;
+  flex: none;
+}
+.log-team[data-team='vert'] { background: var(--green); color: var(--paper); }
+.log-team[data-team='blanc'] { background: var(--ink); color: var(--paper); }
+.log-team[data-team='arbitre'] { background: var(--red); color: var(--paper); }
+
+.sr-only {
+  position: absolute;
+  width: 1px; height: 1px;
+  padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0 0 0 0);
+  white-space: nowrap; border: 0;
+}
+
+/* Écrans hauts : on redonne de la place au terrain et aux cartes en main. */
+@media (min-height: 760px) {
+  .pitch { height: clamp(150px, 23dvh, 210px); }
+  .table-row { grid-template-columns: 88px 1fr; }
+}
+
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+
+/* Séquence en cours : réplique de la pile de jeu visible sur la table. */
+.brief-seq { margin-top: 11px; }
+.brief-seq-label {
+  font-family: var(--display);
+  font-size: 9px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  margin: 0 0 5px;
+  padding-top: 8px;
+  border-top: 2px solid rgba(23, 19, 16, 0.16);
+}
+.brief-seq-list { list-style: none; margin: 0; padding: 0; }
+.brief-seq-list li {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  font-size: 12.5px;
+  padding: 2px 0;
+}
+.brief-seq-list em { font-style: normal; color: var(--ink-soft); font-size: 11px; }

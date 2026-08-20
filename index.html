@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#1b6b3d">
+<title>Les Canonniers — jeu de football</title>
+<meta name="description" content="Reconstruction web du jeu de cartes Les Canonniers, Éditions Edmond Dujardin, Arcachon.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' fill='%23171310'/%3E%3Ccircle cx='50' cy='50' r='33' fill='%23d3a03c'/%3E%3Cg stroke='%23a97b23' stroke-width='2.5' fill='none'%3E%3Cpath d='M19 39h62M19 61h62M39 19v62M61 19v62'/%3E%3C/g%3E%3C/svg%3E">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div id="app">
+
+  <!-- =========================================================== ACCUEIL === -->
+  <section class="screen is-active" id="screen-home">
+    <header class="title-block">
+      <p class="title-kicker">Règle du jeu</p>
+      <h1 class="title-main">les<br>canonniers</h1>
+      <p class="title-sub">jeu de football</p>
+      <p class="title-editor">Éditions Edmond Dujardin — Arcachon</p>
+    </header>
+
+    <div class="home-body">
+      <span class="field-label">Nombre de joueurs</span>
+      <div class="mode-switch" role="group" aria-label="Nombre de joueurs">
+        <button type="button" data-mode="2p" aria-pressed="true">2 joueurs</button>
+        <button type="button" data-mode="4p" aria-pressed="false">4 joueurs</button>
+      </div>
+
+      <span class="field-label">Composition des équipes</span>
+      <div class="player-inputs">
+        <div class="player-row">
+          <span class="player-chip" data-team="vert">Vert</span>
+          <input type="text" placeholder="Joueur 1" maxlength="14" autocomplete="off">
+        </div>
+        <div class="player-row">
+          <span class="player-chip" data-team="blanc">Blanc</span>
+          <input type="text" placeholder="Joueur 2" maxlength="14" autocomplete="off">
+        </div>
+        <div class="player-row">
+          <span class="player-chip" data-team="vert">Vert</span>
+          <input type="text" placeholder="Joueur 3" maxlength="14" autocomplete="off">
+        </div>
+        <div class="player-row">
+          <span class="player-chip" data-team="blanc">Blanc</span>
+          <input type="text" placeholder="Joueur 4" maxlength="14" autocomplete="off">
+        </div>
+      </div>
+
+      <button type="button" class="btn" id="btn-start">Coup d'envoi</button>
+
+      <div class="home-links">
+        <button type="button" class="btn btn--ghost btn--small" id="btn-help-home">Règles du jeu</button>
+      </div>
+
+      <p class="home-note">
+        Partie en pass-and-play sur un seul appareil : l'écran se masque entre deux
+        joueurs. Chaque joueur pioche, pose une à trois cartes consécutives, puis
+        complète sa main à huit cartes.
+      </p>
+    </div>
+  </section>
+
+  <!-- ============================================================== JEU ==== -->
+  <section class="screen" id="screen-game">
+    <div class="topbar">
+      <div class="score-side" data-team="vert" id="score-vert">
+        <span class="score-name">Vert</span>
+        <span class="score-value">0</span>
+      </div>
+      <div class="score-side" data-team="blanc" id="score-blanc">
+        <span class="score-name">Blanc</span>
+        <span class="score-value">0</span>
+      </div>
+      <div class="topbar-actions">
+        <button type="button" id="btn-log" aria-label="Journal de la partie" title="Journal">☰</button>
+        <button type="button" id="btn-help-game" aria-label="Règles du jeu" title="Règles">?</button>
+        <button type="button" id="btn-quit" aria-label="Quitter la partie" title="Quitter">✕</button>
+      </div>
+    </div>
+
+    <div class="pitch-wrap">
+      <div class="pitch">
+        <div class="pitch-half pitch-half--top"></div>
+        <div class="pitch-half pitch-half--bottom"></div>
+        <div class="pitch-box pitch-box--top"></div>
+        <div class="pitch-box pitch-box--bottom"></div>
+        <div class="pitch-circle"></div>
+        <span class="pitch-tag pitch-tag--top">Camp vert</span>
+        <span class="pitch-tag pitch-tag--bottom">Camp blanc</span>
+        <span class="pitch-mark">Modèle déposé — Jeu Ed. Dujardin</span>
+        <div class="ball" id="ball" data-camp="centre" role="img" aria-label="Ballon au centre"></div>
+      </div>
+      <p class="sr-only" id="pitch-status" aria-live="polite">Ballon au centre</p>
+    </div>
+
+    <div class="counters">
+      <span>Talon <b id="talon-count">0</b></span>
+      <i class="sep"></i>
+      <span>Défausse <b id="defausse-count">0</b></span>
+      <i class="sep"></i>
+      <span>Pile <b id="pile-count">0</b></span>
+    </div>
+
+    <div class="table-row">
+      <div class="stack-col">
+        <span class="stack-label">Carte exposée</span>
+        <div id="pile-slot"></div>
+      </div>
+
+      <div class="brief">
+        <div class="brief-head">
+          <span>Au tour de <span class="brief-turn" id="brief-player">—</span></span>
+          <span id="brief-team"></span>
+        </div>
+        <div class="brief-body">
+          <p class="brief-exposed" id="brief-exposed">Coup d'envoi</p>
+          <p class="brief-legal" id="brief-legal"></p>
+          <div class="brief-chips" id="brief-chips"></div>
+          <div class="brief-seq" id="brief-seq"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="hand-section">
+      <div class="hand-head">
+        <span class="hand-team-dot" id="hand-dot" data-team="vert"></span>
+        <span class="hand-owner" id="hand-owner">—</span>
+        <span class="hand-count" id="hand-count"></span>
+      </div>
+      <div class="hand-scroll" id="hand-scroll"></div>
+      <div class="actions">
+        <button type="button" class="btn btn--green btn--small" id="btn-play">Poser la carte</button>
+        <button type="button" class="btn btn--ghost btn--small" id="btn-end">Fin du tour</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================= AIDE ==== -->
+  <section class="screen" id="screen-help">
+    <header class="title-block">
+      <p class="title-kicker">Aide-mémoire</p>
+      <h1 class="title-main">règles<br>du jeu</h1>
+    </header>
+
+    <div class="help-body">
+      <button type="button" class="btn btn--ghost btn--small" id="btn-help-back" style="margin-bottom:22px;width:auto;padding-inline:18px">← Retour</button>
+
+      <h2>But du jeu</h2>
+      <p>
+        Marquer le plus de buts possible. Une carte « but » est toujours précédée d'un
+        « tir au but », d'un « boulet de canon », d'un « coup franc direct », d'un
+        « penalty » ou d'un « coup de chance ». Le joueur qui marque ramasse la pile de
+        jeu et la pose devant lui : l'équipe gagnante est celle qui a le plus de piles.
+      </p>
+
+      <h2>Déroulement d'un tour</h2>
+      <ul>
+        <li>Piochez une carte au talon.</li>
+        <li>Posez de <strong>une à trois cartes consécutives</strong> sur la pile de jeu.</li>
+        <li>Complétez votre main à <strong>huit cartes</strong>.</li>
+        <li>Si vous ne pouvez rien poser, défaussez une carte : c'est au voisin de gauche.</li>
+      </ul>
+
+      <h2>Coup d'envoi</h2>
+      <p>
+        Le ballon est placé au centre. Le joueur qui a obtenu le plus haut point au dé
+        commence obligatoirement par une carte <strong>passe</strong> : le ballon part
+        alors dans le camp adverse. Impossible de marquer dès le coup d'envoi, sauf par
+        l'enchaînement « passe » → « coup de chance » → « but ».
+      </p>
+
+      <h2>Lecture des cartes</h2>
+      <p>
+        Sur chaque carte, la liste imprimée <strong>en noir</strong> donne les cartes que
+        vos équipiers peuvent jouer pour continuer l'action ; la liste
+        <span style="color:var(--red)"><strong>en rouge</strong></span> donne celles que
+        les adversaires peuvent jouer pour vous gêner et s'emparer du ballon.
+      </p>
+
+      <h2>Cartes spéciales</h2>
+      <ul>
+        <li><strong>Boulet de canon, coup franc direct, penalty</strong> : tir presque
+          imparable. Seules parades possibles, en deux cartes consécutives — deux
+          « arrêt », ou un « arrêt » suivi d'un « coup de chance ». Rien d'autre.</li>
+        <li><strong>But refusé</strong> : se joue <em>hors tour</em>, à l'instant exact où
+          un but est marqué. Le but est annulé et l'équipe qui a contesté relance par une
+          « passe ».</li>
+        <li><strong>Coup de chance</strong> : carte double usage. En attaque, elle
+          remplace un « tir au but » ; en défense, elle remplace un « arrêt » et vaut
+          dégagement.</li>
+        <li><strong>Hors-jeu</strong> : ne peut être joué que par l'équipe menacée, et
+          doit être suivi d'un coup franc indirect.</li>
+      </ul>
+
+      <h2>Fautes et sanctions</h2>
+      <ul>
+        <li><strong>Une seule faute</strong> exposée : coup franc <em>indirect</em>
+          obligatoire. Le botteur ne peut pas marquer directement, il doit passer.</li>
+        <li><strong>Deux fautes coup sur coup</strong> : coup franc <em>direct</em> ou
+          penalty, au choix de l'équipe lésée. Le botteur peut marquer directement.</li>
+      </ul>
+
+      <h2>Mouvements du ballon</h2>
+      <p>Le ballon change de camp après :</p>
+      <ul>
+        <li>une touche, une passe ou un dégagement subis dans son propre camp ;</li>
+        <li>une contre-attaque ;</li>
+        <li>une interception suivie d'un dégagement, ou de deux passes successives ;</li>
+        <li>un hors-jeu, une faute simple ou une double faute sanctionnant l'équipe qui
+          attaquait.</li>
+      </ul>
+
+      <h2>Table de succession</h2>
+      <p class="help-lead">
+        Transcrite des pages 13 à 15 du livret et du texte imprimé sur chaque carte.
+      </p>
+      <div class="help-scroll">
+        <table class="help-table">
+          <thead>
+            <tr>
+              <th>Carte exposée</th>
+              <th>Votre équipe continue</th>
+              <th>L'adversaire riposte</th>
+            </tr>
+          </thead>
+          <tbody id="help-table-body"></tbody>
+        </table>
+      </div>
+
+      <h2>Le deck — 109 cartes</h2>
+      <p class="help-lead">
+        108 cartes jouables et une carte vierge, conformes à l'exemplaire documenté.
+      </p>
+      <div class="gallery" id="card-gallery"></div>
+
+      <h2>À propos de cette version</h2>
+      <p class="help-lead">
+        Reconstruction personnelle et non commerciale, réalisée d'après un exemplaire
+        physique du jeu et le scan de son livret. Les illustrations de cette webapp sont
+        de nouveaux dessins réalisés dans l'esprit du matériel d'origine, et non des
+        reproductions des dessins imprimés. La <strong>carte vierge</strong> n'étant
+        décrite nulle part dans le livret retrouvé, elle est jouée ici comme un joker :
+        c'est une extrapolation assumée, signalée comme telle.
+      </p>
+    </div>
+  </section>
+</div>
+
+<!-- ============================================================ OVERLAYS ==== -->
+
+<div class="overlay" id="overlay-pass">
+  <div class="overlay-panel pass-panel">
+    <div class="overlay-head" data-tone="ink">Passez l'appareil</div>
+    <div class="overlay-body">
+      <p class="help-lead" style="margin:0">C'est au tour de</p>
+      <p class="pass-name" id="pass-name">—</p>
+      <p class="pass-team" id="pass-team"></p>
+      <p class="help-lead" style="margin:0">
+        Les autres joueurs ne doivent pas regarder l'écran.
+      </p>
+    </div>
+    <div class="overlay-actions">
+      <button type="button" class="btn btn--green" id="pass-reveal">Voir ma main</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="overlay-joker">
+  <div class="overlay-panel">
+    <div class="overlay-head" data-tone="ink">Carte vierge</div>
+    <div class="overlay-body">
+      <p class="help-lead">
+        Déclarez la carte que remplace votre carte vierge parmi les coups légaux.
+      </p>
+      <div class="choice-grid" id="joker-grid"></div>
+    </div>
+    <div class="overlay-actions">
+      <button type="button" class="btn btn--ghost btn--small" id="joker-cancel">Annuler</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="overlay-refuse">
+  <div class="overlay-panel">
+    <div class="overlay-head" data-tone="red">But refusé ?</div>
+    <div class="overlay-body">
+      <p id="refuse-text"></p>
+    </div>
+    <div class="overlay-actions" id="refuse-actions"></div>
+  </div>
+</div>
+
+<div class="overlay" id="overlay-msg">
+  <div class="overlay-panel">
+    <div class="overlay-head" id="msg-head" data-tone="ink"></div>
+    <div class="overlay-body"><p id="msg-body"></p></div>
+    <div class="overlay-actions">
+      <button type="button" class="btn btn--small" data-close-overlay="overlay-msg">Continuer</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="overlay-log">
+  <div class="overlay-panel">
+    <div class="overlay-head" data-tone="ink">Journal de la partie</div>
+    <div class="overlay-body">
+      <ul class="log-list" id="log-list"></ul>
+    </div>
+    <div class="overlay-actions">
+      <button type="button" class="btn btn--small btn--ghost" data-close-overlay="overlay-log">Fermer</button>
+    </div>
+  </div>
+</div>
+
+<script type="module" src="js/main.js"></script>
+</body>
+</html>
