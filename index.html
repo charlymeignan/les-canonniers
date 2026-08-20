@@ -35,18 +35,34 @@
         <div class="player-row">
           <span class="player-chip" data-team="vert">Vert</span>
           <input type="text" placeholder="Joueur 1" maxlength="14" autocomplete="off">
+          <div class="seat-toggle" role="group" aria-label="Joueur 1 : humain ou ordinateur">
+            <button type="button" data-seat="human" aria-pressed="true" title="Joueur humain">Humain</button>
+            <button type="button" data-seat="ai" aria-pressed="false" title="Piloté par l'ordinateur">Ordi</button>
+          </div>
         </div>
         <div class="player-row">
           <span class="player-chip" data-team="blanc">Blanc</span>
           <input type="text" placeholder="Joueur 2" maxlength="14" autocomplete="off">
+          <div class="seat-toggle" role="group" aria-label="Joueur 2 : humain ou ordinateur">
+            <button type="button" data-seat="human" aria-pressed="false" title="Joueur humain">Humain</button>
+            <button type="button" data-seat="ai" aria-pressed="true" title="Piloté par l'ordinateur">Ordi</button>
+          </div>
         </div>
         <div class="player-row">
           <span class="player-chip" data-team="vert">Vert</span>
           <input type="text" placeholder="Joueur 3" maxlength="14" autocomplete="off">
+          <div class="seat-toggle" role="group" aria-label="Joueur 3 : humain ou ordinateur">
+            <button type="button" data-seat="human" aria-pressed="true" title="Joueur humain">Humain</button>
+            <button type="button" data-seat="ai" aria-pressed="false" title="Piloté par l'ordinateur">Ordi</button>
+          </div>
         </div>
         <div class="player-row">
           <span class="player-chip" data-team="blanc">Blanc</span>
           <input type="text" placeholder="Joueur 4" maxlength="14" autocomplete="off">
+          <div class="seat-toggle" role="group" aria-label="Joueur 4 : humain ou ordinateur">
+            <button type="button" data-seat="human" aria-pressed="false" title="Joueur humain">Humain</button>
+            <button type="button" data-seat="ai" aria-pressed="true" title="Piloté par l'ordinateur">Ordi</button>
+          </div>
         </div>
       </div>
 
@@ -57,9 +73,9 @@
       </div>
 
       <p class="home-note">
-        Partie en pass-and-play sur un seul appareil : l'écran se masque entre deux
-        joueurs. Chaque joueur pioche, pose une à trois cartes consécutives, puis
-        complète sa main à huit cartes.
+        Chaque siège peut être tenu par un humain ou par l'ordinateur. En
+        pass-and-play, l'écran se masque entre deux joueurs humains. Chacun pioche,
+        pose une à trois cartes consécutives, puis complète sa main à huit cartes.
       </p>
     </div>
   </section>
@@ -129,8 +145,10 @@
       <div class="hand-head">
         <span class="hand-team-dot" id="hand-dot" data-team="vert"></span>
         <span class="hand-owner" id="hand-owner">—</span>
+        <span class="hand-badge" id="hand-badge" hidden>Ordinateur</span>
         <span class="hand-count" id="hand-count"></span>
       </div>
+      <div class="ai-banner" id="ai-banner"><span class="dot"></span><span id="ai-banner-text">L'ordinateur joue…</span></div>
       <div class="hand-scroll" id="hand-scroll"></div>
       <div class="actions">
         <button type="button" class="btn btn--green btn--small" id="btn-play">Poser la carte</button>

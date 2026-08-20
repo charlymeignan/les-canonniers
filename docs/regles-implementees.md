@@ -47,14 +47,61 @@ correspond à son équipe (`own` si son équipe est propriétaire de la carte ex
 | **but_refuse** | passe *(l'équipe qui a annulé le but relance comme à un coup d'envoi)* | — | ballon remis au centre | Jouable hors tour, uniquement dans l'instant qui suit un `but`. |
 | **arret** | interception, contre_attaque | — | oui (l'arrêt vaut dégagement) | Le gardien capte : son équipe relance. |
 | **sortie_de_but** | degagement *(obligatoire)* | — | oui | « Raté ! » |
-| **hors_jeu** | — | coup_franc (mode indirect) | oui | Ne peut être jouée que par l'équipe *menacée* par l'attaque. |
-| **faute** (1 carte) | — | coup_franc (mode indirect) | oui | Coup franc indirect obligatoire. |
-| **faute** (2 cartes coup sur coup) | — | coup_franc (mode direct) ou penalty *(choix du joueur)* | oui | Faute grave répétée. |
+| **hors_jeu** | coup_franc (mode indirect) | — | oui | Ne peut être jouée que par l'équipe menacée par l'attaque. Le coup franc revient à **celle qui a signalé le hors-jeu** (page 15, colonne « le ballon est dans votre camp »), pas à celle qui était en position illicite. |
+| **faute** (1ʳᵉ) | faute *(seconde faute possible)* | coup_franc (mode indirect) | si commise par l'équipe qui attaquait | Coup franc indirect obligatoire pour l'équipe lésée. |
+| **faute** (2ᵉ coup sur coup) | — *(pas de 3ᵉ)* | coup_franc (mode direct) ou penalty *(choix de l'équipe lésée)* | idem | Faute grave répétée. |
 | **coup_franc** (indirect) | tir_au_but, boulet_de_canon, passe | interception, contre_attaque, touche | non | Le botteur ne peut pas marquer directement. |
 | **coup_franc** (direct) | but | arret, coup_de_chance | non | Mêmes pouvoirs qu'un boulet de canon. |
 | **penalty** | but | arret, coup_de_chance | non | Défense restreinte identique au boulet de canon / coup franc direct. |
 | **corner** | tir_au_but, passe | interception, faute, contre_attaque | non | « Ne peut être joué que si l'adversaire possède le ballon » : implémenté comme une option de riposte toujours disponible pour l'équipe qui ne possède pas l'initiative, quelle que soit la carte exposée. |
 | **carte_vierge** | *(joker : représente la carte de son choix)* | *(idem)* | — | Non décrite dans le livret retrouvé ; ajout assumé et documenté comme tel (voir README). |
+
+## Deux points de lecture qui ont demandé un arbitrage
+
+### Le tableau des pages 13-15 n'est pas organisé comme les cartes
+
+Le tableau du livret classe les suites selon **la position du ballon** (« le ballon
+est dans le camp adverse : attaquez ! » / « le ballon est dans votre camp :
+ripostez ! »), tandis que le texte imprimé sur chaque carte les classe selon
+**qui joue** (noir = les équipiers, rouge = les adversaires, convention donnée en
+page 10). Les deux découpages coïncident dans la très grande majorité des cas,
+mais pas partout.
+
+Le moteur suit la convention **noir/rouge des cartes**, parce que c'est celle que
+le joueur a physiquement sous les yeux pendant la partie. Là où le tableau est
+plus précis que la carte — notamment pour `hors_jeu` — c'est le tableau qui
+tranche, et le choix est signalé dans la colonne « Notes » ci-dessus.
+
+### La double faute doit être possible
+
+Le livret sanctionne « 2 fautes coup sur coup » par un coup franc direct ou un
+penalty. Pour que ce cas existe, une équipe doit pouvoir poser **deux cartes
+`faute` d'affilée** — ce qu'elle peut faire puisqu'un joueur pose de une à trois
+cartes consécutives à son tour. La table donne donc `faute → faute` en suite
+« own ». Sans cette suite, les cartes `penalty` et `coup franc direct` seraient
+strictement injouables : le banc d'essai (`test/simulation.mjs`) l'a détecté en
+signalant que `penalty` n'était jamais posé sur 300 parties.
+
+## Blocage de la pile : règle de déblocage ajoutée
+
+Certaines cartes n'ouvrent aucune suite pour l'un des deux camps (`arret` et
+`sortie_de_but` ne laissent rien à l'adversaire, `hors_jeu` rien à l'équipe prise
+en défaut). Si, en plus, le camp concerné n'a aucune des cartes attendues en main,
+plus personne ne peut enchaîner sur la carte exposée.
+
+Le livret ne décrit ce cas que pour le coup d'envoi (page 10 : on se défausse de
+proche en proche jusqu'à ce qu'un joueur puisse jouer « passe »). Le moteur étend
+la même logique à toute la partie : **quand tous les joueurs ont passé leur tour
+à la suite, la pile de jeu part à la défausse, le ballon revient au centre et la
+partie repart sur un coup d'envoi.** C'est une extrapolation assumée, sans
+laquelle une partie sur deux se figerait.
+
+## Fin de la partie
+
+« Le jeu continue jusqu'à épuisement des cartes en main » (page 11). La partie
+s'achève donc quand le talon est vide et que plus aucun joueur n'a de carte ;
+l'équipe qui a ramassé le plus de piles — c'est-à-dire marqué le plus de buts —
+l'emporte.
 
 ## Mouvements du ballon (page 12)
 
@@ -84,3 +131,16 @@ vierge, à défaut d'une règle imprimée retrouvée), elle est implémentée ic
 **joker** : elle peut être jouée à la place de n'importe quelle carte légale au moment
 où elle est posée, sur déclaration du joueur. Ce choix est une extrapolation assumée,
 signalée comme telle dans l'écran d'aide de l'application.
+
+
+## Comment ces règles sont vérifiées
+
+- `test/rules.test.mjs` — 27 tests unitaires sur le deck, chaque branche de la
+  table de succession, et des séquences de partie complètes.
+- `test/simulation.mjs` — parties ordinateur contre ordinateur en série. À chaque
+  tour, le banc d'essai vérifie que les 109 cartes sont toutes présentes et
+  uniques, qu'aucune main ne dépasse la taille autorisée, que le camp du ballon
+  reste valide et que la partie progresse vers sa fin. Il signale aussi toute
+  carte du deck **jamais posée**, ce qui trahit une branche morte de la table.
+- `test/ui.test.mjs` — parcours réels dans un navigateur, y compris une partie
+  ordinateur contre ordinateur menée à son terme.

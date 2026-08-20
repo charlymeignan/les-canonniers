@@ -77,16 +77,23 @@ export const SUCCESSION = {
     campChangeOn: 'own',
   },
   hors_jeu: {
-    own: [],
-    rival: ['coup_franc'],
-    rivalFreeKickMode: 'indirect',
-    campChangeOn: 'rival',
+    // Page 15, colonne « le ballon est dans votre camp » : c'est l'équipe qui a
+    // signalé le hors-jeu — donc celle qui défendait — qui tire le coup franc
+    // indirect, et le ballon change de camp à ce moment.
+    own: ['coup_franc'],
+    rival: [],
+    ownFreeKickMode: 'indirect',
+    campChangeOn: 'own',
   },
   faute: {
-    own: [],
+    // Une équipe peut commettre deux fautes coup sur coup dans le même tour :
+    // c'est ce qui déclenche la sanction aggravée (coup franc direct ou penalty).
+    // Sans cette suite, la carte « penalty » ne serait jamais jouable.
+    own: ['faute'],
+    // Le coup franc revient à l'équipe qui subit la faute.
     rival: ['coup_franc'],
-    rivalFreeKickMode: 'indirect', // recalculé en 'direct' si 2 fautes coup sur coup (voir rules engine)
-    campChangeOn: 'rival',
+    rivalFreeKickMode: 'indirect', // 'direct' si deux fautes coup sur coup
+    campChangeOn: 'own', // faute commise par l'équipe qui attaquait (page 14)
   },
   coup_franc: {
     modes: {
@@ -162,18 +169,25 @@ export function getLegalCardIds(state) {
     };
   }
 
-  // Faute : détermine si on est sur une 2e faute consécutive de la même équipe
-  // fautive (=> coup franc direct ou penalty au choix), sinon indirect.
+  // Faute : l'équipe fautive peut en commettre une seconde coup sur coup, ce qui
+  // aggrave la sanction. L'équipe lésée tire un coup franc indirect après une
+  // faute simple, un coup franc direct ou un penalty après une double faute.
   if (top.cardId === 'faute') {
-    if (isOwnTeam) return { legalIds: ['carte_vierge'], reason: 'own-none' };
     const doubleFaute = state.consecutiveFautes >= 2;
+    if (isOwnTeam) {
+      // Pas de troisième faute d'affilée : la sanction est déjà maximale.
+      return doubleFaute
+        ? { legalIds: ['carte_vierge'], reason: 'own-none' }
+        : { legalIds: ['faute', 'carte_vierge'], reason: 'own' };
+    }
     const ids = doubleFaute ? ['coup_franc', 'penalty'] : ['coup_franc'];
     return { legalIds: [...ids, 'carte_vierge'], reason: 'rival', freeKickMode: doubleFaute ? 'direct' : 'indirect' };
   }
 
+  // Hors-jeu : le coup franc indirect revient à l'équipe qui l'a signalé.
   if (top.cardId === 'hors_jeu') {
-    if (isOwnTeam) return { legalIds: ['carte_vierge'], reason: 'own-none' };
-    return { legalIds: ['coup_franc', 'carte_vierge'], reason: 'rival', freeKickMode: 'indirect' };
+    if (!isOwnTeam) return { legalIds: ['carte_vierge'], reason: 'rival-none' };
+    return { legalIds: ['coup_franc', 'carte_vierge'], reason: 'own', freeKickMode: 'indirect' };
   }
 
   const rawIds = isOwnTeam ? (topDef.own || []) : (topDef.rival || []);

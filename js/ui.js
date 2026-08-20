@@ -10,6 +10,7 @@ import {
   legalHandCards, currentLegalInfo, butRefuseHolders, playButRefuseOutOfTurn,
   otherTeam, TEAM_VERT, TEAM_BLANC,
 } from './state.js';
+import { aiTurn } from './match.js';
 
 const $ = (sel, root = document) => root.querySelector(sel);
 const $$ = (sel, root = document) => [...root.querySelectorAll(sel)];
@@ -17,6 +18,16 @@ const $$ = (sel, root = document) => [...root.querySelectorAll(sel)];
 let game = null;
 let selectedUid = null;
 let handRevealed = false;
+let aiRunning = false;
+// Jeton de session : incrémenté à chaque nouvelle partie ou abandon. Une boucle
+// d'IA déjà lancée compare son jeton avant chaque étape et s'interrompt si la
+// partie sous elle a changé — sinon elle continuerait à jouer une partie
+// abandonnée.
+let aiToken = 0;
+
+// Rythme d'affichage du tour de l'ordinateur : assez lent pour qu'on suive la
+// séquence sur la pile de jeu, assez vif pour ne pas faire attendre.
+const AI_STEP_MS = 850;
 
 // ------------------------------------------------------------------ cartes ---
 
@@ -200,6 +211,7 @@ function renderHand() {
   $('#hand-owner').textContent = p.name;
   $('#hand-dot').dataset.team = p.teamId;
   $('#hand-count').textContent = `${game.hands[p.id].length} carte${game.hands[p.id].length > 1 ? 's' : ''}`;
+  $('#hand-badge').hidden = !p.isAI;
 
   if (!handRevealed) {
     scroll.innerHTML = game.hands[p.id]
@@ -266,8 +278,22 @@ function afterPlay(playedId) {
 
   if (playedId === 'but' && game.pendingGoal) {
     const holders = butRefuseHolders(game);
-    if (holders.length > 0) {
-      openButRefuseWindow(holders);
+    const humanHolders = holders.filter((h) => !h.isAI);
+    if (humanHolders.length > 0) {
+      // Un humain détient de quoi contester : à lui de trancher.
+      openButRefuseWindow(humanHolders);
+    } else if (holders.length > 0) {
+      // Seul l'ordinateur peut contester : il le fait systématiquement, la
+      // carte étant unique.
+      const ai = holders[0];
+      const card = game.hands[ai.id].find((c) => c.cardId === 'but_refuse')
+        || game.hands[ai.id].find((c) => c.cardId === 'carte_vierge');
+      playButRefuseOutOfTurn(game, ai.id, card.uid);
+      handRevealed = false;
+      render();
+      flashMessage('But refusé', `${ai.name} sort la carte « but refusé » : l'arbitre annule le but. Le ballon revient au centre.`, 'red');
+      openPassScreen();
+      return;
     } else {
       confirmGoal(game);
       handRevealed = false;
@@ -292,12 +318,95 @@ function finishTurn() {
   openPassScreen();
 }
 
+/**
+ * Rend la main au joueur suivant : écran de passage pour un humain, tour
+ * automatique pour l'ordinateur.
+ */
 function openPassScreen() {
   const p = activePlayer(game);
   if (!p) return;
+  if (game.turnPhase === 'over') { showEndOfMatch(); return; }
+
+  if (p.isAI) {
+    runAITurn();
+    return;
+  }
+
   $('#pass-name').textContent = p.name;
   $('#pass-team').textContent = `Équipe ${game.teams[p.teamId].name}`;
   openOverlay('overlay-pass');
+}
+
+/**
+ * Déroule le tour de l'ordinateur étape par étape, à rythme lisible : on doit
+ * voir la pile de jeu se garnir, pas découvrir le résultat d'un bloc.
+ */
+function runAITurn() {
+  if (aiRunning) return;
+  const player = activePlayer(game);
+  if (!player?.isAI) return;
+
+  aiRunning = true;
+  handRevealed = false;
+  selectedUid = null;
+  setAIBanner(true, `${player.name} réfléchit…`);
+  render();
+
+  const steps = aiTurn(game);
+  const token = aiToken;
+
+  const tick = () => {
+    if (token !== aiToken) { aiRunning = false; return; } // partie abandonnée
+    const { value: step, done } = steps.next();
+    if (done) {
+      aiRunning = false;
+      setAIBanner(false);
+      render();
+      if (game.turnPhase === 'over') { showEndOfMatch(); return; }
+      openPassScreen();
+      return;
+    }
+
+    if (step.type === 'play') {
+      setAIBanner(true, `${player.name} pose ${CARD_DEFS[step.cardId]?.name ?? step.cardId}`);
+    } else if (step.type === 'discard') {
+      setAIBanner(true, `${player.name} se défausse`);
+    } else if (step.type === 'goal-confirmed') {
+      setAIBanner(true, `But de l'équipe ${game.teams[step.teamId].name} !`);
+    } else if (step.type === 'goal-cancelled') {
+      setAIBanner(true, 'But refusé par l\'arbitre');
+    } else if (step.awaitingHuman) {
+      // L'ordinateur a marqué et un humain détient « but refusé » : on rend la
+      // décision au joueur et on suspend le déroulé automatique.
+      aiRunning = false;
+      setAIBanner(false);
+      render();
+      openButRefuseWindow(step.holders.filter((h) => !h.isAI));
+      return;
+    }
+
+    render();
+    setTimeout(tick, AI_STEP_MS);
+  };
+
+  setTimeout(tick, AI_STEP_MS);
+}
+
+function setAIBanner(on, text = '') {
+  const el = $('#ai-banner');
+  el.classList.toggle('is-on', on);
+  if (text) $('#ai-banner-text').textContent = text;
+}
+
+function showEndOfMatch() {
+  const { vert, blanc } = game.teams;
+  const verdict = game.winner === 'nul'
+    ? `Match nul, ${vert.score} partout.`
+    : `L'équipe ${game.teams[game.winner].name} l'emporte ${Math.max(vert.score, blanc.score)} à ${Math.min(vert.score, blanc.score)}.`;
+  $('#msg-head').textContent = 'Fin de la partie';
+  $('#msg-head').dataset.tone = 'gold';
+  $('#msg-body').textContent = `${verdict} Les cartes sont épuisées : le nombre de piles ramassées départage les équipes.`;
+  openOverlay('overlay-msg');
 }
 
 function revealHand() {
@@ -383,12 +492,13 @@ function renderCardGallery() {
 
 // ----------------------------------------------------------------- démarrage -
 
-function readPlayerNames() {
+function readSeats() {
   const mode = $('.mode-switch button[aria-pressed="true"]').dataset.mode;
   const count = mode === '4p' ? 4 : 2;
   return $$('.player-row').slice(0, count).map((row, i) => {
-    const val = row.querySelector('input').value.trim();
-    return val || `Joueur ${i + 1}`;
+    const isAI = row.querySelector('.seat-toggle button[data-seat="ai"]').getAttribute('aria-pressed') === 'true';
+    const typed = row.querySelector('input').value.trim();
+    return { name: typed || (isAI ? `Ordinateur ${i + 1}` : `Joueur ${i + 1}`), isAI };
   });
 }
 
@@ -401,7 +511,8 @@ function syncModeInputs() {
 }
 
 function startGame() {
-  game = createGame(readPlayerNames());
+  aiToken += 1; // toute boucle d'IA d'une partie précédente s'arrête ici
+  game = createGame(readSeats());
   // Le dé (page 8) désigne qui donne le coup d'envoi.
   const roll = () => 1 + Math.floor(Math.random() * 6);
   let idx = 0, best = -1;
@@ -411,6 +522,8 @@ function startGame() {
 
   selectedUid = null;
   handRevealed = false;
+  aiRunning = false;
+  setAIBanner(false);
   showScreen('screen-game');
   render();
   renderLog();
@@ -429,6 +542,8 @@ export function bindUI() {
       game.hands[playerId] = cardIds.map((cardId, i) => ({ uid: `t${playerId}${i}`, cardId }));
     },
     reveal() { handRevealed = true; },
+    /** Interrompt la boucle d'affichage de l'IA (tests, avance rapide). */
+    haltAI() { aiToken += 1; aiRunning = false; setAIBanner(false); },
     render,
   };
 
@@ -443,6 +558,17 @@ export function bindUI() {
     });
   });
 
+  $$('.seat-toggle').forEach((group) => {
+    group.addEventListener('click', (e) => {
+      const btn = e.target.closest('button[data-seat]');
+      if (!btn) return;
+      [...group.querySelectorAll('button')].forEach((b) => b.setAttribute('aria-pressed', String(b === btn)));
+      const input = group.parentElement.querySelector('input');
+      const i = $$('.player-row').indexOf(group.parentElement);
+      input.placeholder = btn.dataset.seat === 'ai' ? `Ordinateur ${i + 1}` : `Joueur ${i + 1}`;
+    });
+  });
+
   $('#btn-start').addEventListener('click', startGame);
   $('#btn-help-home').addEventListener('click', () => showScreen('screen-help'));
   $('#btn-help-back').addEventListener('click', () => showScreen(game ? 'screen-game' : 'screen-home'));
@@ -450,10 +576,16 @@ export function bindUI() {
 
   $('#btn-log').addEventListener('click', () => { renderLog(); openOverlay('overlay-log'); });
   $('#btn-quit').addEventListener('click', () => {
-    if (confirm('Abandonner la partie en cours ?')) { game = null; showScreen('screen-home'); }
+    if (!confirm('Abandonner la partie en cours ?')) return;
+    aiToken += 1; // interrompt une éventuelle boucle d'IA en cours
+    aiRunning = false;
+    setAIBanner(false);
+    game = null;
+    showScreen('screen-home');
   });
 
   $('#hand-scroll').addEventListener('click', (e) => {
+    if (aiRunning) return;
     const btn = e.target.closest('[data-uid]');
     if (!btn) return;
     if (btn.classList.contains('card--muted')) {
@@ -464,9 +596,12 @@ export function bindUI() {
     selectCard(btn.dataset.uid);
   });
 
-  $('#btn-play').addEventListener('click', doPlaySelected);
+  $('#btn-play').addEventListener('click', () => {
+    if (aiRunning) return;
+    doPlaySelected();
+  });
   $('#btn-end').addEventListener('click', () => {
-    if (game.pendingGoal) return;
+    if (aiRunning || game.pendingGoal) return;
     finishTurn();
   });
 
@@ -499,7 +634,7 @@ export function bindUI() {
       handRevealed = false;
       render();
       flashMessage('But refusé', 'L\'arbitre annule le but. Le ballon revient au centre et l\'équipe qui a contesté relance par une passe.', 'red');
-      openPassScreen();
+      if (activePlayer(game)?.isAI) runAITurn();
       return;
     }
     if (skip) {
@@ -508,6 +643,7 @@ export function bindUI() {
       handRevealed = false;
       render();
       flashMessage('But validé', 'Le marqueur ramasse la pile de jeu, complète sa main à huit cartes et relance immédiatement par une passe.', 'ink');
+      if (activePlayer(game)?.isAI) runAITurn();
     }
   });
 

@@ -10,15 +10,19 @@ export const TEAM_BLANC = 'blanc';
 
 /**
  * Crée une nouvelle partie.
- * @param {string[]} playerNames - 2 ou 4 noms, dans l'ordre d'assise autour de la
- *   table. En mode 4 joueurs, les équipes alternent : [vert, blanc, vert, blanc].
+ * @param {Array<string|{name: string, isAI: boolean}>} seats - 2 ou 4 joueurs, dans
+ *   l'ordre d'assise autour de la table. En mode 4 joueurs, les équipes alternent :
+ *   [vert, blanc, vert, blanc]. Chaque siège peut être humain ou tenu par
+ *   l'ordinateur.
  * @param {function} rng - générateur pseudo-aléatoire injectable (tests).
  */
-export function createGame(playerNames, rng = Math.random) {
+export function createGame(seats, rng = Math.random) {
+  const playerNames = seats.map((s) => (typeof s === 'string' ? s : s.name));
   const mode = playerNames.length === 4 ? '4p' : '2p';
   const players = playerNames.map((name, i) => ({
     id: `p${i}`,
     name,
+    isAI: typeof seats[i] === 'object' ? !!seats[i].isAI : false,
     teamId: mode === '4p' ? (i % 2 === 0 ? TEAM_VERT : TEAM_BLANC) : (i === 0 ? TEAM_VERT : TEAM_BLANC),
   }));
 
@@ -52,6 +56,7 @@ export function createGame(playerNames, rng = Math.random) {
     freeKickMode: null,
     consecutiveFautes: 0,
     pendingGoal: null,
+    consecutivePasses: 0,
     turnCardsPlayed: 0,
     turnPhase: 'kickoff', // 'kickoff' | 'draw' | 'play' | 'refill' | 'but-refuse-window' | 'over'
     history: [],
@@ -156,7 +161,7 @@ export function legalHandCards(state) {
   return result;
 }
 
-function isLegalForActivePlayer(state, cardId) {
+export function isLegalForActivePlayer(state, cardId) {
   const p = activePlayer(state);
   const check = { ...state, activeTeamId: p.teamId };
   return isLegalPlay(check, cardId);
@@ -196,10 +201,14 @@ export function playCard(state, cardUid, declaredAs = null) {
   } else if (effectiveId === 'hors_jeu') {
     state.freeKickMode = 'indirect';
     state.consecutiveFautes = 0;
-  } else if (effectiveId === 'coup_franc' || effectiveId === 'penalty') {
-    state.freeKickMode = null;
+  } else if (effectiveId === 'coup_franc') {
+    // Le mode du coup franc est fixé par la sanction qui l'a provoqué et doit
+    // survivre à sa pose : c'est lui qui décide si le botteur peut marquer
+    // directement. Le réinitialiser ici transformerait tout coup franc direct
+    // en coup franc indirect au coup suivant.
     state.consecutiveFautes = 0;
   } else if (effectiveId !== 'faute') {
+    state.freeKickMode = null;
     state.consecutiveFautes = 0;
   }
 
@@ -282,11 +291,50 @@ export function discardExcess(state, cardUid) {
 export function endTurn(state) {
   const p = activePlayer(state);
   const hand = state.hands[p.id];
-  if (hand.length > 8) return; // attendre défausse
+  if (hand.length > 8) return; // attendre la défausse
+
+  // Un tour sans aucune carte posée est un "passe". Si tout le monde passe à la
+  // suite, la situation est bloquée : personne ne peut enchaîner sur la carte
+  // exposée. Le livret ne décrit ce cas que pour le coup d'envoi (page 10, on
+  // défausse jusqu'à ce qu'un joueur puisse jouer "passe") ; on étend la même
+  // logique à toute la partie en remisant la pile et en relançant un coup
+  // d'envoi, plutôt que de laisser la partie s'arrêter. Choix assumé, documenté
+  // dans docs/regles-implementees.md.
+  if (state.turnCardsPlayed === 0) {
+    state.consecutivePasses += 1;
+    if (state.consecutivePasses >= state.players.length && state.pileDeJeu.length > 0) {
+      state.defausse.push(...state.pileDeJeu);
+      state.pileDeJeu = [];
+      state.ballCamp = 'centre';
+      state.freeKickMode = null;
+      state.consecutiveFautes = 0;
+      state.consecutivePasses = 0;
+      logEvent(state, { type: 'deadlock-reset' });
+    }
+  } else {
+    state.consecutivePasses = 0;
+  }
+
   while (hand.length < 8 && state.talon.length > 0) hand.push(state.talon.pop());
   state.currentPlayerIndex = nextSeatIndex(state, state.currentPlayerIndex);
   state.turnPhase = 'draw';
   state.turnCardsPlayed = 0;
+  checkExhaustion(state);
+}
+
+/**
+ * Fin de partie : « le jeu continue jusqu'à épuisement des cartes en main »
+ * (page 11). Quand le talon est vide et qu'aucun joueur n'a plus de carte,
+ * l'équipe qui a marqué le plus de buts l'emporte.
+ */
+function checkExhaustion(state) {
+  if (state.talon.length > 0) return;
+  const anyCards = state.players.some((p) => state.hands[p.id].length > 0);
+  if (anyCards) return;
+  state.turnPhase = 'over';
+  const { vert, blanc } = state.teams;
+  state.winner = vert.score === blanc.score ? 'nul' : (vert.score > blanc.score ? TEAM_VERT : TEAM_BLANC);
+  logEvent(state, { type: 'match-over', winner: state.winner });
 }
 
 export function currentLegalInfo(state) {

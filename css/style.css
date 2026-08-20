@@ -892,3 +892,51 @@ button { font: inherit; color: inherit; border: none; background: none; cursor: 
   padding: 2px 0;
 }
 .brief-seq-list em { font-style: normal; color: var(--ink-soft); font-size: 11px; }
+
+/* Sélecteur de siège : humain ou ordinateur, un par joueur. */
+.seat-toggle { display: flex; flex: none; border-left: 3px solid var(--ink); }
+.seat-toggle button {
+  padding: 0 9px;
+  font-family: var(--display);
+  font-size: 10px;
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+  background: var(--paper);
+  color: var(--ink-soft);
+}
+.seat-toggle button + button { border-left: 2px solid var(--ink); }
+.seat-toggle button[aria-pressed='true'] { background: var(--gold); color: var(--ink); }
+
+/* Bandeau "l'ordinateur joue" pendant le tour d'une IA. */
+.ai-banner {
+  display: none;
+  align-items: center;
+  gap: 9px;
+  padding: 9px 12px;
+  background: var(--gold);
+  color: var(--ink);
+  font-family: var(--display);
+  font-size: 12px;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+}
+.ai-banner.is-on { display: flex; }
+.ai-banner .dot {
+  width: 9px; height: 9px;
+  background: var(--ink);
+  border-radius: 50%;
+  animation: blink 0.9s steps(2, start) infinite;
+}
+@keyframes blink { 50% { opacity: 0.15; } }
+@media (prefers-reduced-motion: reduce) { .ai-banner .dot { animation: none; } }
+
+.hand-badge {
+  font-family: var(--display);
+  font-size: 9px;
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+  background: var(--gold);
+  color: var(--ink);
+  padding: 1px 5px;
+  flex: none;
+}

@@ -108,13 +108,25 @@ await page.click('#btn-play');
 await page.waitForTimeout(350);
 await shot('10-but-refuse');
 
+// Tour de l'ordinateur : bandeau d'attente pendant qu'il joue.
+await page.click('[data-refuse-skip]', { timeout: 1500 }).catch(() => {});
+await page.waitForTimeout(200);
+await page.click('[data-close-overlay="overlay-msg"]', { timeout: 1500 }).catch(() => {});
+await page.evaluate(() => {
+  const api = window.__canonniers;
+  api.game.players.forEach((p) => { p.isAI = true; });
+  api.render();
+});
+await page.click('#btn-end', { timeout: 1500 }).catch(() => {});
+await page.waitForTimeout(1100);
+await shot('11-ordinateur');
+await page.evaluate(() => window.__canonniers.haltAI());
+
 // Journal de partie.
-await page.click('[data-refuse-skip]').catch(() => {});
-await page.waitForTimeout(250);
-await page.click('[data-close-overlay="overlay-msg"]').catch(() => {});
+await page.click('[data-close-overlay="overlay-msg"]', { timeout: 1500 }).catch(() => {});
 await page.click('#btn-log');
 await page.waitForTimeout(250);
-await shot('11-journal');
+await shot('12-journal');
 
 await browser.close();
 

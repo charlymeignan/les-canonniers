@@ -1,0 +1,18 @@
+{
+  "name": "les-canonniers",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Reconstruction web mobile-first du jeu de cartes Les Canonniers (Éditions Edmond Dujardin)",
+  "type": "module",
+  "scripts": {
+    "serve": "python3 -m http.server 8000",
+    "test": "node test/rules.test.mjs && node test/simulation.mjs 300",
+    "test:rules": "node test/rules.test.mjs",
+    "test:sim": "node test/simulation.mjs",
+    "test:ui": "node test/ui.test.mjs",
+    "shots": "node test/screenshot.mjs /tmp/shots"
+  },
+  "devDependencies": {
+    "playwright": "^1.49.0"
+  }
+}

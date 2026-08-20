@@ -100,6 +100,14 @@ test('penalty : même défense restreinte', () => {
 });
 
 console.log('\nFautes et coups francs');
+test('l’équipe fautive peut commettre une seconde faute coup sur coup', () => {
+  // Sans cette suite, la double faute — donc le penalty — serait injouable.
+  const state = { pileDeJeu: [{ cardId: 'faute', teamId: TEAM_VERT }], activeTeamId: TEAM_VERT, consecutiveFautes: 1 };
+  assert.deepEqual(getLegalCardIds(state).legalIds.filter((c) => c !== 'carte_vierge'), ['faute']);
+  // Mais pas une troisième : la sanction est déjà maximale.
+  const apresDouble = { pileDeJeu: [{ cardId: 'faute', teamId: TEAM_VERT }], activeTeamId: TEAM_VERT, consecutiveFautes: 2 };
+  assert.deepEqual(getLegalCardIds(apresDouble).legalIds.filter((c) => c !== 'carte_vierge'), []);
+});
 test('1 faute => coup franc indirect uniquement', () => {
   const state = { pileDeJeu: [{ cardId: 'faute', teamId: TEAM_VERT }], activeTeamId: TEAM_BLANC, consecutiveFautes: 1 };
   const { legalIds, freeKickMode } = getLegalCardIds(state);
@@ -143,13 +151,15 @@ test('après but_refuse, l’équipe qui l’a joué doit rejouer "passe"', () =
 });
 
 console.log('\nHors-jeu et corner');
-test('hors-jeu : seule l’équipe menacée peut répondre, obligatoirement par coup franc indirect', () => {
-  const state = { pileDeJeu: [{ cardId: 'hors_jeu', teamId: TEAM_VERT }], activeTeamId: TEAM_VERT };
-  assert.deepEqual(getLegalCardIds(state).legalIds.filter((c) => c !== 'carte_vierge'), []);
-  const rival = { pileDeJeu: [{ cardId: 'hors_jeu', teamId: TEAM_VERT }], activeTeamId: TEAM_BLANC };
-  const { legalIds, freeKickMode } = getLegalCardIds(rival);
+test('hors-jeu : le coup franc indirect revient à l’équipe qui l’a signalé', () => {
+  // C'est l'équipe qui pose le hors-jeu (celle qui défendait) qui tire ensuite.
+  const signaleur = { pileDeJeu: [{ cardId: 'hors_jeu', teamId: TEAM_VERT }], activeTeamId: TEAM_VERT };
+  const { legalIds, freeKickMode } = getLegalCardIds(signaleur);
   assert.deepEqual(legalIds.filter((c) => c !== 'carte_vierge'), ['coup_franc']);
   assert.equal(freeKickMode, 'indirect');
+  // L'équipe prise en position de hors-jeu, elle, ne joue rien.
+  const pris = { pileDeJeu: [{ cardId: 'hors_jeu', teamId: TEAM_VERT }], activeTeamId: TEAM_BLANC };
+  assert.deepEqual(getLegalCardIds(pris).legalIds.filter((c) => c !== 'carte_vierge'), []);
 });
 test('corner disponible dès que l’équipe active n’a pas l’initiative, quelle que soit la carte exposée', () => {
   const state = { pileDeJeu: [{ cardId: 'interception', teamId: TEAM_VERT }], activeTeamId: TEAM_BLANC };
@@ -173,6 +183,23 @@ test('interception ne change pas le camp', () => {
   const state = { pileDeJeu: [{ cardId: 'passe', teamId: TEAM_VERT }], activeTeamId: TEAM_BLANC };
   const fx = resolvePlay(state, 'interception', TEAM_BLANC);
   assert.ok(!fx.changesCamp);
+});
+
+test('le mode du coup franc survit à la pose de la carte', () => {
+  // Régression : réinitialiser freeKickMode en posant le coup franc transformait
+  // un coup franc direct en indirect, rendant le but impossible à marquer.
+  const g = createGame(['Alice', 'Bruno'], seededRng(11));
+  g.currentPlayerIndex = 0;
+  g.turnPhase = 'play';
+  g.pileDeJeu = [{ uid: 'f1', cardId: 'faute', teamId: TEAM_BLANC, playerId: 'p1' }];
+  g.consecutiveFautes = 2;
+  g.freeKickMode = 'direct';
+  g.hands.p0 = [{ uid: 'cf', cardId: 'coup_franc' }, { uid: 'b', cardId: 'but' }];
+
+  playCard(g, 'cf');
+  assert.equal(g.freeKickMode, 'direct', 'le mode direct doit être conservé');
+  assert.ok(isLegalPlay({ ...g, activeTeamId: TEAM_VERT }, 'but'),
+    'le botteur d’un coup franc direct doit pouvoir marquer');
 });
 
 console.log('\nPartie complète (createGame / playCard)');
