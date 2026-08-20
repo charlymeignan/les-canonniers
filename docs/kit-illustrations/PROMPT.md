@@ -52,6 +52,10 @@ Une photo de la carte d'origine correspondante est fournie dans
 un modèle à décalquer** : le but est une illustration nouvelle dans la même
 manière, pas une copie.
 
+Ces vignettes sont petites (~160 × 220 px), c'est la limite de la source. Pour
+donner au modèle une meilleure idée du style d'ensemble, joindre aussi la
+planche entière `refs-materiel/planche-cartes-1.jpg` ou `-2.jpg`.
+
 | Fichier à produire | Sujet |
 |---|---|
 | `passe.webp` | Joueur de profil qui pousse le ballon du pied intérieur, jambe d'appui fléchie, ballon au sol devant lui. Maillot cerclé vert-blanc-rouge. |
