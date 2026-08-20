@@ -54,7 +54,6 @@ correspond à son équipe (`own` si son équipe est propriétaire de la carte ex
 | **coup_franc** (direct) | but | arret, coup_de_chance | non | Mêmes pouvoirs qu'un boulet de canon. |
 | **penalty** | but | arret, coup_de_chance | non | Défense restreinte identique au boulet de canon / coup franc direct. |
 | **corner** | tir_au_but, passe | interception, faute, contre_attaque | non | « Ne peut être joué que si l'adversaire possède le ballon » : implémenté comme une option de riposte toujours disponible pour l'équipe qui ne possède pas l'initiative, quelle que soit la carte exposée. |
-| **carte_vierge** | *(joker : représente la carte de son choix)* | *(idem)* | — | Non décrite dans le livret retrouvé ; ajout assumé et documenté comme tel (voir README). |
 
 ## Deux points de lecture qui ont demandé un arbitrage
 
@@ -124,21 +123,17 @@ suivi d'un `coup_de_chance`. Aucune autre carte ne peut interrompre ces trois-l�
 
 ## Carte vierge
 
-L'inventaire du deck observé mentionne une carte vierge (109ᵉ carte) sans qu'aucune
-page photographiée du livret ne la décrive. Par cohérence avec l'usage courant de ce
-type de carte dans les jeux de cartes français de cette époque (carte de remplacement
-vierge, à défaut d'une règle imprimée retrouvée), elle est implémentée ici comme un
-**joker** : elle peut être jouée à la place de n'importe quelle carte légale au moment
-où elle est posée, sur déclaration du joueur. Ce choix est une extrapolation assumée,
-signalée comme telle dans l'écran d'aide de l'application.
-
+La boîte documentée contenait une 109ᵉ carte vierge, qu'aucune page du livret ne
+décrit. **Elle n'est pas une carte de jeu** : c'est une carte de remplacement,
+comme il s'en glissait couramment dans les jeux de cartes français de l'époque.
+Elle n'est donc pas distribuée, et le deck jouable compte **108 cartes**.
 
 ## Comment ces règles sont vérifiées
 
 - `test/rules.test.mjs` — 27 tests unitaires sur le deck, chaque branche de la
   table de succession, et des séquences de partie complètes.
 - `test/simulation.mjs` — parties ordinateur contre ordinateur en série. À chaque
-  tour, le banc d'essai vérifie que les 109 cartes sont toutes présentes et
+  tour, le banc d’essai vérifie que les 108 cartes sont toutes présentes et
   uniques, qu'aucune main ne dépasse la taille autorisée, que le camp du ballon
   reste valide et que la partie progresse vers sa fin. Il signale aussi toute
   carte du deck **jamais posée**, ce qui trahit une branche morte de la table.

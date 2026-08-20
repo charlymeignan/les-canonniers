@@ -1,103 +1,111 @@
-// deck.js — Définition du deck "Les Canonniers" (109 cartes : 108 jouables + 1 vierge)
+// deck.js — Définition du deck jouable de "Les Canonniers" : 108 cartes.
 // Quantités et intitulés d'après docs/inventaire-materiel.md (exemplaire observé).
-// Les propriétés visuelles (monogram, badgeColor, icon) servent à js/assets-mapping.js
-// pour dessiner les cartes en s'inspirant fidèlement des photos du matériel réel.
+//
+// Les champs visuels décrivent la mise en page relevée sur les photos macro des
+// cartes réelles. Cinq traitements d'en-tête coexistent sur le matériel :
+//
+//   'solid' : lettrine dans un carré de couleur plein   → D égagement, I nterception
+//   'frame' : le mot entier cerné d'un filet de couleur → A rrêt, F aute
+//   'stack' : deux lettres empilées, sans cadre         → C/F oup franc
+//   'icon'  : pictogramme à la place de la lettrine     → passe, tir au but, touche…
+//   'band'  : bandeau de couleur pleine largeur         → contre-attaque
+//
+// `head` porte la lettrine (ou le pictogramme), `rest` la suite du mot : sur la
+// carte, la lettrine EST la première lettre de l'intitulé, elle ne se répète pas.
+//
+// La boîte documentée contenait une 109ᵉ carte vierge. Le livret ne lui donne
+// aucune fonction : c'est une carte de remplacement, pas une carte de jeu. Elle
+// n'est donc pas distribuée — le deck jouable compte 108 cartes.
 
 export const CARD_DEFS = {
   passe: {
     id: 'passe', name: 'Passe', qty: 12,
-    monogram: null, icon: 'ballon-carre', badgeColor: 'ink',
+    badge: 'icon', icon: 'ballon-carre', head: null, rest: 'Passe',
     illus: 'passe',
   },
   contre_attaque: {
     id: 'contre_attaque', name: 'Contre-attaque', qty: 6,
-    monogram: null, icon: 'arrows-vertical', badgeColor: 'gold',
+    badge: 'band', color: 'gold', head: null, rest: 'contre-attaque',
     illus: 'ballon-fleches',
-  },
-  arret: {
-    id: 'arret', name: 'Arrêt', qty: 11,
-    monogram: 'A', icon: null, badgeColor: 'green',
-    illus: 'arret',
-  },
-  coup_franc: {
-    id: 'coup_franc', name: 'Coup franc', qty: 8,
-    monogram: 'CF', icon: null, badgeColor: 'green',
-    illus: 'coup-franc',
-  },
-  hors_jeu: {
-    id: 'hors_jeu', name: 'Hors-jeu', qty: 2,
-    monogram: 'HJ', icon: null, badgeColor: 'red',
-    illus: 'hors-jeu',
-    subtitle: 'Coup franc indirect',
-  },
-  sortie_de_but: {
-    id: 'sortie_de_but', name: 'Sortie de but', qty: 2,
-    monogram: null, icon: 'cage', badgeColor: 'red',
-    illus: 'sortie-de-but',
-    subtitle: 'Dégagement',
-  },
-  but_refuse: {
-    id: 'but_refuse', name: 'But refusé', qty: 1,
-    monogram: null, icon: 'cage-croix', badgeColor: 'red',
-    illus: 'but-refuse',
-    subtitle: 'Passe',
   },
   interception: {
     id: 'interception', name: 'Interception', qty: 13,
-    monogram: 'I', icon: null, badgeColor: 'gold',
+    badge: 'solid', color: 'gold', head: 'I', rest: 'nterception',
     illus: 'interception',
+  },
+  degagement: {
+    id: 'degagement', name: 'Dégagement', qty: 10,
+    badge: 'solid', color: 'green', head: 'D', rest: 'égagement',
+    illus: 'degagement',
+  },
+  touche: {
+    id: 'touche', name: 'Touche', qty: 2,
+    badge: 'icon', icon: 'fanion', head: null, rest: 'touche',
+    illus: 'touche',
   },
   tir_au_but: {
     id: 'tir_au_but', name: 'Tir au but', qty: 10,
-    monogram: null, icon: 'cible', badgeColor: 'green',
+    badge: 'icon', icon: 'cible', head: null, rest: 'tir au but',
     illus: 'tir-au-but',
   },
   boulet_de_canon: {
     id: 'boulet_de_canon', name: 'Boulet de canon', qty: 3,
-    monogram: 'B', icon: null, badgeColor: 'gold',
+    badge: 'solid', color: 'gold', head: 'B', rest: 'oulet de canon',
     illus: 'boulet-de-canon',
-  },
-  touche: {
-    id: 'touche', name: 'Touche', qty: 2,
-    monogram: null, icon: 'fanion', badgeColor: 'red',
-    illus: 'touche',
   },
   coup_de_chance: {
     id: 'coup_de_chance', name: 'Coup de chance', qty: 4,
-    monogram: null, icon: 'trefle', badgeColor: 'green',
+    badge: 'icon', icon: 'trefle', head: null, rest: 'coup de chance',
     illus: 'coup-de-chance',
+  },
+  but: {
+    id: 'but', name: 'But', qty: 10,
+    // Le seul intitulé en capitales du jeu, dans un cartouche noir aux lettres or.
+    badge: 'solid', color: 'ink', head: 'BUT', rest: '',
+    illus: 'but',
+  },
+  but_refuse: {
+    id: 'but_refuse', name: 'But refusé', qty: 1,
+    badge: 'icon', icon: 'cage-croix', head: null, rest: 'but refusé',
+    illus: 'but-refuse',
+    subtitle: 'Passe',
+  },
+  arret: {
+    id: 'arret', name: 'Arrêt', qty: 11,
+    badge: 'frame', color: 'green', head: 'A', rest: 'rrêt',
+    illus: 'arret',
+  },
+  sortie_de_but: {
+    id: 'sortie_de_but', name: 'Sortie de but', qty: 2,
+    badge: 'icon', icon: 'cage', head: null, rest: 'sortie de but',
+    illus: 'sortie-de-but',
+    subtitle: 'Dégagement',
+  },
+  hors_jeu: {
+    id: 'hors_jeu', name: 'Hors-jeu', qty: 2,
+    badge: 'solid', color: 'red', head: 'HJ', rest: 'hors jeu',
+    illus: 'hors-jeu',
+    subtitle: 'Coup franc indirect',
   },
   faute: {
     id: 'faute', name: 'Faute', qty: 10,
-    monogram: 'F', icon: null, badgeColor: 'red',
+    badge: 'frame', color: 'red', head: 'F', rest: 'aute',
     illus: 'faute',
+  },
+  coup_franc: {
+    id: 'coup_franc', name: 'Coup franc', qty: 8,
+    badge: 'stack', color: 'green', head: 'CF', rest: 'oup franc',
+    illus: 'coup-franc',
   },
   corner: {
     id: 'corner', name: 'Corner', qty: 2,
-    monogram: '2', icon: null, badgeColor: 'green',
+    badge: 'icon', icon: 'coin', head: null, rest: 'corner',
     illus: 'corner',
   },
   penalty: {
     id: 'penalty', name: 'Penalty', qty: 2,
-    monogram: 'P', icon: null, badgeColor: 'green',
+    badge: 'solid', color: 'green', head: 'P', rest: 'enalty',
     illus: 'penalty',
-  },
-  but: {
-    id: 'but', name: 'But', qty: 10,
-    monogram: 'BUT', icon: null, badgeColor: 'ink',
-    illus: 'but',
-  },
-  degagement: {
-    id: 'degagement', name: 'Dégagement', qty: 10,
-    monogram: 'D', icon: null, badgeColor: 'green',
-    illus: 'degagement',
-  },
-  carte_vierge: {
-    id: 'carte_vierge', name: 'Carte vierge', qty: 1,
-    monogram: '?', icon: null, badgeColor: 'ink',
-    illus: null,
-    subtitle: 'Joker — remplace la carte de votre choix',
-    isJoker: true,
   },
 };
 
@@ -105,14 +113,14 @@ export const CARD_ORDER = [
   'passe', 'contre_attaque', 'interception', 'degagement', 'touche',
   'tir_au_but', 'boulet_de_canon', 'coup_de_chance', 'but', 'but_refuse',
   'arret', 'sortie_de_but', 'hors_jeu', 'faute', 'coup_franc', 'corner',
-  'penalty', 'carte_vierge',
+  'penalty',
 ];
 
 export function totalCardCount() {
   return CARD_ORDER.reduce((sum, id) => sum + CARD_DEFS[id].qty, 0);
 }
 
-/** Construit les 109 cartes physiques (instances uniques) sous forme de tableau. */
+/** Construit les 108 cartes jouables (instances uniques) sous forme de tableau. */
 export function buildFullDeck() {
   const deck = [];
   let uid = 0;

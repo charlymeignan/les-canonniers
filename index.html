@@ -16,11 +16,18 @@
 
   <!-- =========================================================== ACCUEIL === -->
   <section class="screen is-active" id="screen-home">
-    <header class="title-block">
-      <p class="title-kicker">Règle du jeu</p>
-      <h1 class="title-main">les<br>canonniers</h1>
-      <p class="title-sub">jeu de football</p>
-      <p class="title-editor">Éditions Edmond Dujardin — Arcachon</p>
+    <!-- Composition reprise de la couverture de la boîte : fond vert, cartouche
+         rouge en haut à droite, bande noire portant le titre en bas. -->
+    <header class="cover">
+      <div class="cover-cartouche">
+        <p class="cover-cartouche-main">un jeu de<br>football</p>
+        <p class="cover-cartouche-sub">par<br><strong>Edmond Dujardin S. A.</strong><br>Arcachon</p>
+      </div>
+      <div class="cover-kicker">
+        <span class="cover-kicker-icon" id="cover-ball"></span>
+        <span>Règle du jeu</span>
+      </div>
+      <h1 class="cover-title"><span>les canonniers</span></h1>
     </header>
 
     <div class="home-body">
@@ -159,9 +166,10 @@
 
   <!-- ============================================================= AIDE ==== -->
   <section class="screen" id="screen-help">
-    <header class="title-block">
-      <p class="title-kicker">Aide-mémoire</p>
-      <h1 class="title-main">règles<br>du jeu</h1>
+    <header class="booklet">
+      <p class="booklet-kicker">Règle<br>du<br>jeu</p>
+      <h1 class="booklet-title">les<br>canonniers</h1>
+      <p class="booklet-sub">jeu de football</p>
     </header>
 
     <div class="help-body">
@@ -251,7 +259,9 @@
 
       <h2>Le deck — 109 cartes</h2>
       <p class="help-lead">
-        108 cartes jouables et une carte vierge, conformes à l'exemplaire documenté.
+        Les 108 cartes jouables de l'exemplaire documenté. La boîte contenait aussi
+        une carte vierge, sans fonction de jeu : c'est une carte de remplacement,
+        elle n'est pas distribuée.
       </p>
       <div class="gallery" id="card-gallery"></div>
 
@@ -260,9 +270,7 @@
         Reconstruction personnelle et non commerciale, réalisée d'après un exemplaire
         physique du jeu et le scan de son livret. Les illustrations de cette webapp sont
         de nouveaux dessins réalisés dans l'esprit du matériel d'origine, et non des
-        reproductions des dessins imprimés. La <strong>carte vierge</strong> n'étant
-        décrite nulle part dans le livret retrouvé, elle est jouée ici comme un joker :
-        c'est une extrapolation assumée, signalée comme telle.
+        reproductions des dessins imprimés.
       </p>
     </div>
   </section>
@@ -283,21 +291,6 @@
     </div>
     <div class="overlay-actions">
       <button type="button" class="btn btn--green" id="pass-reveal">Voir ma main</button>
-    </div>
-  </div>
-</div>
-
-<div class="overlay" id="overlay-joker">
-  <div class="overlay-panel">
-    <div class="overlay-head" data-tone="ink">Carte vierge</div>
-    <div class="overlay-body">
-      <p class="help-lead">
-        Déclarez la carte que remplace votre carte vierge parmi les coups légaux.
-      </p>
-      <div class="choice-grid" id="joker-grid"></div>
-    </div>
-    <div class="overlay-actions">
-      <button type="button" class="btn btn--ghost btn--small" id="joker-cancel">Annuler</button>
     </div>
   </div>
 </div>

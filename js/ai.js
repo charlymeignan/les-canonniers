@@ -10,12 +10,10 @@
 // rares), et qui serve de banc d'essai au moteur de règles.
 
 import { CARD_DEFS } from './deck.js';
-import { getLegalCardIds } from './rules.js';
 
 /** Valeur d'usage de chaque carte, hors contexte. Plus haut = plus précieux. */
 const RARITY = {
   but_refuse: 100, // exemplaire unique, ne se défausse jamais
-  carte_vierge: 90,
   penalty: 70,
   boulet_de_canon: 65,
   corner: 55,
@@ -119,7 +117,7 @@ function isUnderThreat(state, teamId) {
  * @param {object} state - état de partie
  * @param {object} player - joueur actif
  * @param {function} isLegal - (cardId) => bool, fourni par la couche état
- * @returns {{card: object, declaredAs: string|null}|null} null = ne rien poser
+ * @returns {{card: object}|null} null = ne rien poser
  */
 export function chooseCard(state, player, isLegal) {
   const hand = state.hands[player.id];
@@ -135,27 +133,12 @@ export function chooseCard(state, player, isLegal) {
 
   let best = null;
   for (const card of hand) {
-    if (card.cardId === 'carte_vierge') continue; // traité séparément ci-dessous
     if (!isLegal(card.cardId)) continue;
     const s = scorePlay(card.cardId, ctx);
-    if (!best || s > best.score) best = { card, declaredAs: null, score: s };
+    if (!best || s > best.score) best = { card, score: s };
   }
 
-  // La carte vierge sert de joker : on ne la sort que si elle débloque un coup
-  // vraiment décisif (marquer, ou parer un tir imparable), jamais pour meubler.
-  const joker = hand.find((c) => c.cardId === 'carte_vierge');
-  if (joker) {
-    const { legalIds } = getLegalCardIds({ ...state, activeTeamId: player.teamId });
-    const options = legalIds.filter((id) => id !== 'carte_vierge');
-    for (const id of options) {
-      const decisive = id === 'but' || (ctx.underThreat && id === 'arret');
-      if (!decisive) continue;
-      const s = scorePlay(id, ctx) - 5;
-      if (!best || s > best.score) best = { card: joker, declaredAs: id, score: s };
-    }
-  }
-
-  return best ? { card: best.card, declaredAs: best.declaredAs } : null;
+  return best ? { card: best.card } : null;
 }
 
 /**
@@ -171,7 +154,7 @@ export function shouldContinue(state, player, cardsPlayed) {
   const hand = state.hands[player.id];
   const counts = tally(hand);
   if (['tir_au_but', 'boulet_de_canon', 'penalty'].includes(top.cardId)) {
-    return counts.but > 0 || counts.carte_vierge > 0;
+    return counts.but > 0;
   }
   if (top.cardId === 'coup_franc' && state.freeKickMode === 'direct') return counts.but > 0;
   if (top.cardId === 'passe') return counts.tir_au_but > 0 || counts.boulet_de_canon > 0;

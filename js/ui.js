@@ -4,7 +4,7 @@
 
 import { CARD_DEFS, CARD_ORDER } from './deck.js';
 import { SUCCESSION } from './rules.js';
-import { ICON_BUILDERS, illustration, ballSvg } from './assets-mapping.js';
+import { ICON_BUILDERS, illustration, ballSvg, coverStriker } from './assets-mapping.js';
 import {
   createGame, activePlayer, drawForTurn, playCard, confirmGoal, endTurn,
   legalHandCards, currentLegalInfo, butRefuseHolders, playButRefuseOutOfTurn,
@@ -37,16 +37,14 @@ export function renderCard(cardId, { large = false, playable = false, muted = fa
   if (!def) return '';
   const succ = SUCCESSION[cardId] || {};
 
-  const badge = def.icon
-    ? `<span class="card-badge card-badge--icon">${ICON_BUILDERS[def.icon]?.() ?? ''}</span>`
-    : def.monogram
-      ? `<span class="card-badge${def.monogram.length > 2 ? ' card-badge--wide' : ''}" data-color="${def.badgeColor}">${def.monogram}</span>`
-      : '';
+  // En-tête : la lettrine EST la première lettre de l'intitulé sur la carte
+  // réelle, elle ne se répète donc pas dans le texte qui suit.
+  const head = renderCardHead(def);
 
   const corner = (pos) => `
-    <span class="card-corner card-corner--${pos}">
-      ${badge}
-      <span class="card-title">${def.name.toLowerCase()}</span>
+    <span class="card-corner card-corner--${pos}" data-badge="${def.badge}" data-color="${def.color ?? ''}">
+      ${head}
+      ${def.rest ? `<span class="card-title">${def.rest}</span>` : ''}
     </span>`;
 
   // Listes de succession imprimées sur la carte : noir = suites de son équipe,
@@ -64,17 +62,41 @@ export function renderCard(cardId, { large = false, playable = false, muted = fa
 
   const classes = [
     'card',
+    `card--head-${def.badge}`,
     (!ownList.length && !rivalList.length) && 'card--no-lists',
     large && 'card--lg',
     playable && 'card--playable',
     muted && 'card--muted',
     selected && 'card--selected',
-    def.isJoker && 'card--joker',
   ].filter(Boolean).join(' ');
 
   return `<div class="${classes}" data-card="${cardId}">
     ${corner('tl')}${subtitle}${lists}${illus}${corner('br')}
   </div>`;
+}
+
+/**
+ * En-tête de carte, dans l'un des cinq traitements relevés sur le matériel :
+ * lettrine pleine, mot cerné d'un filet, lettres empilées, pictogramme, bandeau.
+ */
+function renderCardHead(def) {
+  switch (def.badge) {
+    case 'icon':
+      return `<span class="card-badge card-badge--icon">${ICON_BUILDERS[def.icon]?.() ?? ''}</span>`;
+    case 'stack':
+      // "C" au-dessus de "F", sans cadre, comme sur la carte "coup franc".
+      return `<span class="card-badge card-badge--stack" data-color="${def.color}">${
+        [...def.head].map((ch) => `<b>${ch}</b>`).join('')
+      }</span>`;
+    case 'frame':
+      // Le filet cerne le mot entier : la lettrine et la suite sont dedans.
+      return `<span class="card-badge card-badge--frame" data-color="${def.color}"><b>${def.head}</b></span>`;
+    case 'band':
+      return '';
+    case 'solid':
+    default:
+      return `<span class="card-badge card-badge--solid${def.head.length > 1 ? ' card-badge--wide' : ''}" data-color="${def.color}">${def.head}</span>`;
+  }
 }
 
 function ownIdsFor(cardId) {
@@ -161,7 +183,7 @@ function renderTable() {
     : '';
   $('#brief-exposed').innerHTML = `${exposedName}${modeTag}${ownerTag}`;
 
-  const legalIds = info.legalIds.filter((id) => id !== 'carte_vierge');
+  const legalIds = info.legalIds;
 
   if (!top) {
     $('#brief-legal').innerHTML = `Coup d'envoi : posez obligatoirement une <strong>passe</strong>. Le ballon partira dans le camp adverse.`;
@@ -198,7 +220,7 @@ function renderSequence() {
       ${seq.slice(-6).map((c) => `
         <li>
           <span class="log-team" data-team="${c.teamId}">${game.teams[c.teamId].name}</span>
-          ${CARD_DEFS[c.cardId]?.name ?? c.cardId}${c.jokerFor ? ' <em>(vierge)</em>' : ''}
+          ${CARD_DEFS[c.cardId]?.name ?? c.cardId}
         </li>`).join('')}
     </ol>`;
 }
@@ -257,12 +279,6 @@ function doPlaySelected() {
   const card = game.hands[p.id].find((c) => c.uid === selectedUid);
   if (!card) return;
 
-  // Carte vierge : le joueur déclare ce qu'elle remplace.
-  if (card.cardId === 'carte_vierge') {
-    openJokerPicker(card.uid);
-    return;
-  }
-
   try {
     playCard(game, card.uid);
   } catch (err) {
@@ -286,8 +302,7 @@ function afterPlay(playedId) {
       // Seul l'ordinateur peut contester : il le fait systématiquement, la
       // carte étant unique.
       const ai = holders[0];
-      const card = game.hands[ai.id].find((c) => c.cardId === 'but_refuse')
-        || game.hands[ai.id].find((c) => c.cardId === 'carte_vierge');
+      const card = game.hands[ai.id].find((c) => c.cardId === 'but_refuse');
       playButRefuseOutOfTurn(game, ai.id, card.uid);
       handRevealed = false;
       render();
@@ -416,22 +431,6 @@ function revealHand() {
   render();
 }
 
-function openJokerPicker(uid) {
-  const info = currentLegalInfo(game);
-  const options = info.legalIds.filter((id) => id !== 'carte_vierge');
-  if (options.length === 0) {
-    flashMessage('Aucune option', 'Aucune carte légale à déclarer avec la carte vierge dans cette situation.');
-    return;
-  }
-  $('#joker-grid').innerHTML = options
-    .map((id) => renderCard(id, { playable: true })
-      .replace('<div class="card', `<button type="button" data-joker="${id}" class="card`)
-      .replace(/<\/div>$/, '</button>'))
-    .join('');
-  $('#joker-grid').dataset.uid = uid;
-  openOverlay('overlay-joker');
-}
-
 function openButRefuseWindow(holders) {
   const names = holders.map((h) => h.name).join(', ');
   $('#refuse-text').textContent =
@@ -463,15 +462,14 @@ function renderLog() {
           return `<li><span class="log-team" data-team="arbitre">Arbitre</span> But refusé — le but est annulé.</li>`;
         }
         const player = game.players.find((p) => p.id === h.playerId);
-        const joker = h.joker ? ' (carte vierge)' : '';
-        return `<li><span class="log-team" data-team="${h.teamId}">${game.teams[h.teamId].name}</span> ${player?.name ?? ''} pose <strong>${CARD_DEFS[h.cardId]?.name ?? h.cardId}</strong>${joker}.</li>`;
+        return `<li><span class="log-team" data-team="${h.teamId}">${game.teams[h.teamId].name}</span> ${player?.name ?? ''} pose <strong>${CARD_DEFS[h.cardId]?.name ?? h.cardId}</strong>.</li>`;
       }).join('');
 }
 
 // --------------------------------------------------------------- écran aide --
 
 function renderHelpTable() {
-  const rows = CARD_ORDER.filter((id) => id !== 'carte_vierge').map((id) => {
+  const rows = CARD_ORDER.map((id) => {
     const def = CARD_DEFS[id];
     const own = ownIdsFor(id).map((c) => CARD_DEFS[c]?.name ?? c).join(', ') || '—';
     const rival = rivalIdsFor(id).map((c) => CARD_DEFS[c]?.name ?? c).join(', ') || '—';
@@ -532,6 +530,15 @@ function startGame() {
 
 // ------------------------------------------------------------------- events --
 
+/** Compose la couverture de l'accueil (tireur + ballon du bandeau). */
+function renderCover() {
+  const fig = document.createElement('div');
+  fig.className = 'cover-figure';
+  fig.innerHTML = coverStriker();
+  $('.cover').prepend(fig);
+  $('#cover-ball').innerHTML = ballSvg(40);
+}
+
 export function bindUI() {
   // Point d'entrée de test : permet aux captures d'écran et aux tests
   // d'intégration de scénariser une main précise plutôt que de dépendre du
@@ -547,6 +554,7 @@ export function bindUI() {
     render,
   };
 
+  renderCover();
   syncModeInputs();
   renderCardGallery();
   renderHelpTable();
@@ -607,28 +615,12 @@ export function bindUI() {
 
   $('#pass-reveal').addEventListener('click', revealHand);
 
-  $('#joker-grid').addEventListener('click', (e) => {
-    const btn = e.target.closest('[data-joker]');
-    if (!btn) return;
-    const uid = $('#joker-grid').dataset.uid;
-    try {
-      playCard(game, uid, btn.dataset.joker);
-    } catch (err) {
-      flashMessage('Coup interdit', err.message);
-      return;
-    }
-    closeOverlay('overlay-joker');
-    selectedUid = null;
-    afterPlay(btn.dataset.joker);
-  });
-  $('#joker-cancel').addEventListener('click', () => closeOverlay('overlay-joker'));
-
   $('#refuse-actions').addEventListener('click', (e) => {
     const play = e.target.closest('[data-refuse-player]');
     const skip = e.target.closest('[data-refuse-skip]');
     if (play) {
       const pid = play.dataset.refusePlayer;
-      const card = game.hands[pid].find((c) => c.cardId === 'but_refuse') || game.hands[pid].find((c) => c.cardId === 'carte_vierge');
+      const card = game.hands[pid].find((c) => c.cardId === 'but_refuse');
       playButRefuseOutOfTurn(game, pid, card.uid);
       closeOverlay('overlay-refuse');
       handRevealed = false;

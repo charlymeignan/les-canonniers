@@ -12,7 +12,7 @@ import { getLegalCardIds } from '../js/rules.js';
 import { CARD_DEFS, totalCardCount } from '../js/deck.js';
 
 const GAMES = Number(process.argv[2] || 300);
-const TOTAL_CARDS = totalCardCount();
+const TOTAL_CARDS = totalCardCount(); // 108 cartes jouables
 
 /** Générateur déterministe : une partie ratée doit pouvoir être rejouée. */
 function seededRng(seed) {
@@ -51,7 +51,6 @@ let totalGoals = 0;
 let totalCancelled = 0;
 let totalDeadlocks = 0;
 let finished = 0;
-let jokerPlays = 0;
 const cardPlayCounts = {};
 
 for (let g = 0; g < GAMES; g++) {
@@ -87,7 +86,6 @@ for (let g = 0; g < GAMES; g++) {
       onStep(step) {
         if (step.type === 'play') {
           cardPlayCounts[step.cardId] = (cardPlayCounts[step.cardId] ?? 0) + 1;
-          if (step.joker) jokerPlays += 1;
         }
         if (step.type === 'goal-confirmed') totalGoals += 1;
         if (step.type === 'goal-cancelled') {
@@ -152,7 +150,6 @@ console.log(`  parties menées à terme      ${finished}/${GAMES} (${pct(finishe
 console.log(`  tours joués (moyenne)       ${(totalTurns / GAMES).toFixed(1)}`);
 console.log(`  buts validés (moyenne)      ${(totalGoals / GAMES).toFixed(2)}`);
 console.log(`  buts refusés (total)        ${totalCancelled}`);
-console.log(`  cartes vierges jouées       ${jokerPlays}`);
 console.log(`  déblocages de pile          ${totalDeadlocks}`);
 
 const played = Object.entries(cardPlayCounts).sort((a, b) => b[1] - a[1]);
@@ -163,7 +160,7 @@ for (const [id, n] of played) {
 
 // Une carte du deck jamais posée sur des centaines de parties signale une
 // branche morte de la table de succession.
-const never = Object.keys(CARD_DEFS).filter((id) => id !== 'carte_vierge' && !cardPlayCounts[id]);
+const never = Object.keys(CARD_DEFS).filter((id) => !cardPlayCounts[id]);
 if (never.length) {
   console.log(`\n  ⚠ jamais posées : ${never.map((id) => CARD_DEFS[id].name).join(', ')}`);
 }

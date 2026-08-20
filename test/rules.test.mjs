@@ -31,27 +31,25 @@ function seededRng(seed) {
 }
 
 console.log('Deck');
-test('109 cartes au total (108 jouables + 1 vierge)', () => {
-  assert.equal(totalCardCount(), 109);
-  const jouables = CARD_ORDER.filter((id) => id !== 'carte_vierge')
-    .reduce((sum, id) => sum + CARD_DEFS[id].qty, 0);
-  assert.equal(jouables, 108);
+test('108 cartes jouables (la carte vierge de la boîte n’est pas distribuée)', () => {
+  assert.equal(totalCardCount(), 108);
+  assert.ok(!CARD_ORDER.includes('carte_vierge'), 'la carte vierge ne doit pas être dans le deck');
 });
 test('quantités individuelles conformes à l’inventaire', () => {
   const expected = {
     tir_au_but: 10, boulet_de_canon: 3, touche: 2, coup_de_chance: 4, sortie_de_but: 2,
     faute: 10, corner: 2, penalty: 2, but: 10, degagement: 10, interception: 13,
-    but_refuse: 1, hors_jeu: 2, passe: 12, coup_franc: 8, arret: 11, carte_vierge: 1,
+    but_refuse: 1, hors_jeu: 2, passe: 12, coup_franc: 8, arret: 11,
     contre_attaque: 6,
   };
   for (const [id, qty] of Object.entries(expected)) {
     assert.equal(CARD_DEFS[id].qty, qty, `quantité ${id}`);
   }
 });
-test('buildFullDeck() produit 109 cartes uniques (uid)', () => {
+test('buildFullDeck() produit 108 cartes uniques (uid)', () => {
   const deck = buildFullDeck();
-  assert.equal(deck.length, 109);
-  assert.equal(new Set(deck.map((c) => c.uid)).size, 109);
+  assert.equal(deck.length, 108);
+  assert.equal(new Set(deck.map((c) => c.uid)).size, 108);
 });
 
 console.log('\nSuccession — coup d’envoi');
@@ -89,7 +87,7 @@ test('boulet de canon ne peut être stoppé que par arrêt ou coup de chance', (
   const state = { pileDeJeu: [{ cardId: 'boulet_de_canon', teamId: TEAM_VERT }], activeTeamId: TEAM_BLANC };
   const { legalIds, restricted } = getLegalCardIds(state);
   assert.ok(restricted);
-  assert.deepEqual(new Set(legalIds.filter((c) => c !== 'carte_vierge')), new Set(['arret', 'coup_de_chance']));
+  assert.deepEqual(new Set(legalIds), new Set(['arret', 'coup_de_chance']));
   assert.ok(!isLegalPlay(state, 'interception'), 'interception ne doit pas stopper un boulet de canon');
 });
 test('penalty : même défense restreinte', () => {
@@ -103,10 +101,10 @@ console.log('\nFautes et coups francs');
 test('l’équipe fautive peut commettre une seconde faute coup sur coup', () => {
   // Sans cette suite, la double faute — donc le penalty — serait injouable.
   const state = { pileDeJeu: [{ cardId: 'faute', teamId: TEAM_VERT }], activeTeamId: TEAM_VERT, consecutiveFautes: 1 };
-  assert.deepEqual(getLegalCardIds(state).legalIds.filter((c) => c !== 'carte_vierge'), ['faute']);
+  assert.deepEqual(getLegalCardIds(state).legalIds, ['faute']);
   // Mais pas une troisième : la sanction est déjà maximale.
   const apresDouble = { pileDeJeu: [{ cardId: 'faute', teamId: TEAM_VERT }], activeTeamId: TEAM_VERT, consecutiveFautes: 2 };
-  assert.deepEqual(getLegalCardIds(apresDouble).legalIds.filter((c) => c !== 'carte_vierge'), []);
+  assert.deepEqual(getLegalCardIds(apresDouble).legalIds, []);
 });
 test('1 faute => coup franc indirect uniquement', () => {
   const state = { pileDeJeu: [{ cardId: 'faute', teamId: TEAM_VERT }], activeTeamId: TEAM_BLANC, consecutiveFautes: 1 };
@@ -141,13 +139,13 @@ test('après un "but", seule but_refuse est jouable (fenêtre spéciale)', () =>
   const state = { pileDeJeu: [{ cardId: 'but', teamId: TEAM_VERT }], activeTeamId: TEAM_BLANC, pendingGoal: { teamId: TEAM_VERT } };
   const { legalIds, reason } = getLegalCardIds(state);
   assert.equal(reason, 'fenetre-but-refuse');
-  assert.deepEqual(legalIds.filter((c) => c !== 'carte_vierge'), ['but_refuse']);
+  assert.deepEqual(legalIds, ['but_refuse']);
 });
 test('après but_refuse, l’équipe qui l’a joué doit rejouer "passe"', () => {
   const state = { pileDeJeu: [{ cardId: 'but_refuse', teamId: TEAM_BLANC }], activeTeamId: TEAM_BLANC };
   const { legalIds, reason } = getLegalCardIds(state);
   assert.equal(reason, 'relance-but-refuse');
-  assert.deepEqual(legalIds.filter((c) => c !== 'carte_vierge'), ['passe']);
+  assert.deepEqual(legalIds, ['passe']);
 });
 
 console.log('\nHors-jeu et corner');
@@ -155,11 +153,11 @@ test('hors-jeu : le coup franc indirect revient à l’équipe qui l’a signal�
   // C'est l'équipe qui pose le hors-jeu (celle qui défendait) qui tire ensuite.
   const signaleur = { pileDeJeu: [{ cardId: 'hors_jeu', teamId: TEAM_VERT }], activeTeamId: TEAM_VERT };
   const { legalIds, freeKickMode } = getLegalCardIds(signaleur);
-  assert.deepEqual(legalIds.filter((c) => c !== 'carte_vierge'), ['coup_franc']);
+  assert.deepEqual(legalIds, ['coup_franc']);
   assert.equal(freeKickMode, 'indirect');
   // L'équipe prise en position de hors-jeu, elle, ne joue rien.
   const pris = { pileDeJeu: [{ cardId: 'hors_jeu', teamId: TEAM_VERT }], activeTeamId: TEAM_BLANC };
-  assert.deepEqual(getLegalCardIds(pris).legalIds.filter((c) => c !== 'carte_vierge'), []);
+  assert.deepEqual(getLegalCardIds(pris).legalIds, []);
 });
 test('corner disponible dès que l’équipe active n’a pas l’initiative, quelle que soit la carte exposée', () => {
   const state = { pileDeJeu: [{ cardId: 'interception', teamId: TEAM_VERT }], activeTeamId: TEAM_BLANC };
@@ -207,7 +205,7 @@ test('createGame distribue 8 cartes à chaque joueur et le reste au talon', () =
   const g = createGame(['Alice', 'Bruno'], seededRng(42));
   assert.equal(g.hands.p0.length, 8);
   assert.equal(g.hands.p1.length, 8);
-  assert.equal(g.talon.length, 109 - 16);
+  assert.equal(g.talon.length, 108 - 16);
   assert.equal(g.players[0].teamId, TEAM_VERT);
   assert.equal(g.players[1].teamId, TEAM_BLANC);
 });
@@ -259,15 +257,6 @@ test('scénario : but refusé annule le score et relance par une passe adverse',
   assert.equal(g.currentPlayerIndex, 1); // Bruno reprend la main
   assert.ok(isLegalPlay({ ...g, activeTeamId: TEAM_BLANC }, 'passe'));
   assert.ok(!isLegalPlay({ ...g, activeTeamId: TEAM_BLANC }, 'tir_au_but'));
-});
-test('carte vierge (joker) peut être déclarée comme n’importe quelle carte légale', () => {
-  const g = createGame(['Alice', 'Bruno'], seededRng(3));
-  g.currentPlayerIndex = 0;
-  g.turnPhase = 'play';
-  g.hands.p0 = [{ uid: 'j1', cardId: 'carte_vierge' }];
-  playCard(g, 'j1', 'passe');
-  assert.equal(g.pileDeJeu.at(-1).cardId, 'passe');
-  assert.equal(g.pileDeJeu.at(-1).jokerFor, 'passe');
 });
 test('coup illégal rejeté (lève une erreur)', () => {
   const g = createGame(['Alice', 'Bruno'], seededRng(4));

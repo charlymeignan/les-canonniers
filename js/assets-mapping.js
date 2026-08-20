@@ -412,7 +412,11 @@ export function iconFanion() {
   return svg(`
     <rect x="26" y="12" width="6" height="76" fill="${OUTLINE}"/>
     <path d="M32 14 L84 32 L32 50 Z" fill="${P.red}" stroke="${OUTLINE}" stroke-width="3"/>
-    <text x="47" y="39" font-size="22" font-family="'Oswald',sans-serif" font-weight="700" fill="${P.paper}">T</text>`);
+    <text x="45" y="40" font-size="24" font-family="'Bitter',Georgia,serif" font-weight="700" fill="${P.paper}">T</text>`);
+}
+
+export function iconCoin() {
+  return svg(`<path d="M0 0 L100 0 A100 100 0 0 1 0 100 Z" fill="${P.green}"/>`);
 }
 
 export function iconCage() { return svg(goalPictogram(false)); }
@@ -427,6 +431,7 @@ export function iconArrowsVert() {
 
 export const ICON_BUILDERS = {
   'ballon-carre': iconBallonCarre,
+  coin: iconCoin,
   cible: iconCible,
   trefle: iconTrefle,
   fanion: iconFanion,
@@ -434,6 +439,101 @@ export const ICON_BUILDERS = {
   'cage-croix': iconCageCroix,
   'arrows-vertical': iconArrowsVert,
 };
+
+
+/**
+ * Le tireur de la couverture de la boîte : jambe droite lancée dans la frappe,
+ * buste incliné, bras écartés pour l'équilibre, ballon fuyant vers la droite
+ * avec ses traits de vitesse. Maillot rouge cerclé de blanc, culotte blanche,
+ * bas rouges à anneaux blancs — les couleurs relevées sur le carton.
+ *
+ * Dessin original composé pour ce projet dans la manière du carton d'origine ;
+ * ce n'est pas un décalque de l'illustration imprimée.
+ */
+export function coverStriker() {
+  const skin = P.skin;
+  const jersey = P.red;
+  const trim = P.white;
+
+  // Anneaux blancs des bas, répartis le long du tibia.
+  const rings = (from, to, n = 3) => {
+    const [x1, y1] = from, [x2, y2] = to;
+    const ang = Math.atan2(y2 - y1, x2 - x1) * 180 / Math.PI;
+    return Array.from({ length: n }, (_, i) => {
+      const t = 0.22 + i * 0.24;
+      const x = x1 + (x2 - x1) * t, y = y1 + (y2 - y1) * t;
+      return `<rect x="${x - 7}" y="${y - 2}" width="14" height="4" fill="${trim}"
+                    transform="rotate(${ang + 90} ${x} ${y})"/>`;
+    }).join('');
+  };
+
+  const shoe = (x, y, ang) =>
+    `<path d="M0 -4 L20 -5 Q26 -5 26 1 L0 4 Z" fill="${OUTLINE}"
+           transform="translate(${x} ${y}) rotate(${ang})"/>`;
+
+  // Squelette : buste très incliné, jambe de frappe tendue à l'horizontale.
+  const HIP = [96, 112];
+  const NECK = [78, 50];
+  const KNEE_BACK = [78, 152], FOOT_BACK = [64, 190];
+  const KNEE_KICK = [136, 126], FOOT_KICK = [176, 142];
+
+  return svg(`
+    <!-- jambe d'appui : cuisse chair, tibia gainé du bas rouge -->
+    ${limb([HIP, KNEE_BACK], 15, skin)}
+    ${limb([KNEE_BACK, FOOT_BACK], 13, jersey)}
+    ${rings(KNEE_BACK, FOOT_BACK)}
+    ${shoe(58, 189, 104)}
+
+    <!-- jambe de frappe : tendue vers le ballon, pointe en extension -->
+    ${limb([HIP, KNEE_KICK], 15, skin)}
+    ${limb([KNEE_KICK, FOOT_KICK], 13, jersey)}
+    ${rings(KNEE_KICK, FOOT_KICK)}
+    ${shoe(174, 141, 18)}
+
+    <!-- culotte blanche -->
+    <path d="M70 92 L110 86 L118 124 Q94 134 74 122 Z"
+          fill="${trim}" stroke="${OUTLINE}" stroke-width="3" stroke-linejoin="round"/>
+
+    <!-- bras arrière, rejeté en haut à gauche pour l'équilibre -->
+    ${limb([NECK, [48, 44], [26, 26]], 12, jersey)}
+    ${limb([[48, 44], [26, 26]], 10.5, skin)}
+    <circle cx="24" cy="24" r="7.5" fill="${skin}" stroke="${OUTLINE}" stroke-width="2.4"/>
+
+    <!-- buste cerclé, incliné dans l'axe de la frappe -->
+    <path d="M62 46 Q84 34 104 48 L112 94 Q88 104 68 92 Z"
+          fill="${jersey}" stroke="${OUTLINE}" stroke-width="3" stroke-linejoin="round"/>
+    <defs><clipPath id="striker-torso">
+      <path d="M62 46 Q84 34 104 48 L112 94 Q88 104 68 92 Z"/>
+    </clipPath></defs>
+    <g clip-path="url(#striker-torso)">
+      <rect x="56" y="58" width="62" height="5" fill="${trim}" transform="rotate(6 56 58)"/>
+      <rect x="58" y="76" width="62" height="5" fill="${trim}" transform="rotate(6 58 76)"/>
+    </g>
+    <path d="M62 46 Q84 34 104 48 L112 94 Q88 104 68 92 Z"
+          fill="none" stroke="${OUTLINE}" stroke-width="3" stroke-linejoin="round"/>
+
+    <!-- bras avant, poing serré vers le haut -->
+    ${limb([[102, 50], [128, 40], [140, 18]], 12, jersey)}
+    ${limb([[128, 40], [140, 18]], 10.5, skin)}
+    <path d="M133 18 q10 -9 16 0 q4 9 -5 12 q-11 2 -11 -12 Z"
+          fill="${skin}" stroke="${OUTLINE}" stroke-width="2.4"/>
+
+    <!-- tête, de trois quarts, mèche noire -->
+    <circle cx="80" cy="28" r="15" fill="${skin}" stroke="${OUTLINE}" stroke-width="3"/>
+    <path d="M65 25 a15 15 0 0 1 30 -2 q-7 -10 -15 -7 q-9 -1 -15 9 Z" fill="${OUTLINE}"/>
+    <circle cx="90" cy="28" r="2.1" fill="${OUTLINE}"/>
+    <path d="M86 22 q6 -2 10 1" fill="none" stroke="${OUTLINE}" stroke-width="2.2" stroke-linecap="round"/>
+    <path d="M85 37 q6 3 10 -1" fill="none" stroke="${OUTLINE}" stroke-width="2.2" stroke-linecap="round"/>
+
+    <!-- ballon frappé : sillage court en éventail, derrière lui, comme sur le carton -->
+    <g stroke="${OUTLINE}" stroke-width="3" stroke-linecap="round" fill="none">
+      <path d="M172 138 q-16 -6 -26 -3"/>
+      <path d="M170 152 q-18 0 -28 6"/>
+      <path d="M174 164 q-14 6 -21 14"/>
+    </g>
+    ${ball(196, 152, 20)}
+  `, '0 0 224 210');
+}
 
 /**
  * Ballon autonome pour le plateau : sur la tôle, le ballon aimanté n'a pas de

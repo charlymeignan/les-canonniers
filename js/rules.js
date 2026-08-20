@@ -120,9 +120,6 @@ export const SUCCESSION = {
     rival: ['interception', 'faute', 'contre_attaque'],
     campChangeOn: 'none',
   },
-  carte_vierge: {
-    joker: true,
-  },
 };
 
 /**
@@ -136,7 +133,7 @@ export function getLegalCardIds(state) {
   const top = state.pileDeJeu[state.pileDeJeu.length - 1];
   if (!top) {
     // Aucune carte posée encore : seul un coup d'envoi "passe" est valide.
-    return { legalIds: ['passe', 'carte_vierge'], reason: 'coup-envoi' };
+    return { legalIds: ['passe'], reason: 'coup-envoi' };
   }
 
   const topDef = SUCCESSION[top.cardId];
@@ -145,15 +142,15 @@ export function getLegalCardIds(state) {
   // Fenêtre spéciale : un "but" vient d'être posé, seule la carte but_refuse
   // (jouable hors tour par l'équipe qui vient d'encaisser) est valide.
   if (top.cardId === 'but' && state.pendingGoal) {
-    return { legalIds: ['but_refuse', 'carte_vierge'], reason: 'fenetre-but-refuse' };
+    return { legalIds: ['but_refuse'], reason: 'fenetre-but-refuse' };
   }
 
   if (topDef?.special === 'cancel-goal') {
     // Après but_refuse, l'équipe qui l'a joué relance comme à un coup d'envoi.
-    return { legalIds: ['passe', 'carte_vierge'], reason: 'relance-but-refuse' };
+    return { legalIds: ['passe'], reason: 'relance-but-refuse' };
   }
 
-  if (!topDef) return { legalIds: ['carte_vierge'], reason: 'inconnu' };
+  if (!topDef) return { legalIds: [], reason: 'inconnu' };
 
   // Coup franc : le mode (indirect/direct) est fixé par ce qui précède
   // (hors-jeu ou faute simple => indirect ; 2 fautes coup sur coup => direct).
@@ -162,7 +159,7 @@ export function getLegalCardIds(state) {
     const branch = topDef.modes[mode];
     const ids = isOwnTeam ? branch.own : branch.rival;
     return {
-      legalIds: [...ids, 'carte_vierge'],
+      legalIds: [...ids],
       reason: isOwnTeam ? 'own' : 'rival',
       restricted: !!branch.restrictedRival && !isOwnTeam,
       freeKickMode: mode,
@@ -177,17 +174,17 @@ export function getLegalCardIds(state) {
     if (isOwnTeam) {
       // Pas de troisième faute d'affilée : la sanction est déjà maximale.
       return doubleFaute
-        ? { legalIds: ['carte_vierge'], reason: 'own-none' }
-        : { legalIds: ['faute', 'carte_vierge'], reason: 'own' };
+        ? { legalIds: [], reason: 'own-none' }
+        : { legalIds: ['faute'], reason: 'own' };
     }
     const ids = doubleFaute ? ['coup_franc', 'penalty'] : ['coup_franc'];
-    return { legalIds: [...ids, 'carte_vierge'], reason: 'rival', freeKickMode: doubleFaute ? 'direct' : 'indirect' };
+    return { legalIds: [...ids], reason: 'rival', freeKickMode: doubleFaute ? 'direct' : 'indirect' };
   }
 
   // Hors-jeu : le coup franc indirect revient à l'équipe qui l'a signalé.
   if (top.cardId === 'hors_jeu') {
-    if (!isOwnTeam) return { legalIds: ['carte_vierge'], reason: 'rival-none' };
-    return { legalIds: ['coup_franc', 'carte_vierge'], reason: 'own', freeKickMode: 'indirect' };
+    if (!isOwnTeam) return { legalIds: [], reason: 'rival-none' };
+    return { legalIds: ['coup_franc'], reason: 'own', freeKickMode: 'indirect' };
   }
 
   const rawIds = isOwnTeam ? (topDef.own || []) : (topDef.rival || []);
@@ -200,7 +197,7 @@ export function getLegalCardIds(state) {
   // fermée (« il n'y a pas d'autres parades possibles ») — corner n'y coupe pas.
   const ids = !isOwnTeam && !restricted ? [...rawIds, 'corner'] : rawIds;
 
-  return { legalIds: [...ids, 'carte_vierge'], reason: isOwnTeam ? 'own' : 'rival', restricted };
+  return { legalIds: [...ids], reason: isOwnTeam ? 'own' : 'rival', restricted };
 }
 
 /** Vérifie qu'une carte donnée peut être posée dans l'état courant par l'équipe active. */

@@ -32,14 +32,9 @@ export function* aiTurn(state) {
     const choice = chooseCard(state, player, (cardId) => isLegalForActivePlayer(state, cardId));
     if (!choice) break;
 
-    playCard(state, choice.card.uid, choice.declaredAs);
+    playCard(state, choice.card.uid);
     played += 1;
-    yield {
-      type: 'play',
-      playerId: player.id,
-      cardId: choice.declaredAs || choice.card.cardId,
-      joker: !!choice.declaredAs,
-    };
+    yield { type: 'play', playerId: player.id, cardId: choice.card.cardId };
 
     // Un but ouvre la fenêtre « but refusé » : elle doit être résolue avant
     // toute autre chose, y compris la suite du tour.
@@ -82,8 +77,7 @@ export function* resolveGoalWindow(state) {
 
   const refuser = holders.find(() => shouldRefuseGoal());
   if (refuser) {
-    const card = state.hands[refuser.id].find((c) => c.cardId === 'but_refuse')
-      || state.hands[refuser.id].find((c) => c.cardId === 'carte_vierge');
+    const card = state.hands[refuser.id].find((c) => c.cardId === 'but_refuse');
     playButRefuseOutOfTurn(state, refuser.id, card.uid);
     yield { type: 'goal-cancelled', playerId: refuser.id };
     return;

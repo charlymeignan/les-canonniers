@@ -86,7 +86,7 @@ export function butRefuseHolders(state) {
   if (!state.pendingGoal) return [];
   const rival = otherTeam(state.pendingGoal.teamId);
   return playersOfTeam(state, rival).filter((p) =>
-    state.hands[p.id].some((c) => c.cardId === 'but_refuse' || c.cardId === 'carte_vierge')
+    state.hands[p.id].some((c) => c.cardId === 'but_refuse')
   );
 }
 
@@ -97,13 +97,13 @@ export function playButRefuseOutOfTurn(state, playerId, cardUid) {
   const idx = hand.findIndex((c) => c.uid === cardUid);
   if (idx === -1) throw new Error('Carte absente de la main');
   const card = hand[idx];
-  if (card.cardId !== 'but_refuse' && card.cardId !== 'carte_vierge') {
+  if (card.cardId !== 'but_refuse') {
     throw new Error('Seule but_refuse peut être jouée hors tour ici');
   }
   hand.splice(idx, 1);
   const teamId = playerTeam(state, playerId);
-  state.pileDeJeu.push({ uid: card.uid, cardId: 'but_refuse', jokerFor: card.cardId === 'carte_vierge' ? 'but_refuse' : null, teamId, playerId });
-  logEvent(state, { type: 'play', cardId: 'but_refuse', teamId, playerId, joker: card.cardId === 'carte_vierge' });
+  state.pileDeJeu.push({ uid: card.uid, cardId: 'but_refuse', teamId, playerId });
+  logEvent(state, { type: 'play', cardId: 'but_refuse', teamId, playerId });
   resolveButRefuse(state);
   state.ballCamp = 'centre';
   state.currentPlayerIndex = state.players.findIndex((pl) => pl.id === playerId);
@@ -168,29 +168,24 @@ export function isLegalForActivePlayer(state, cardId) {
 }
 
 /** Joue une carte de la main du joueur actif. Retourne les effets appliqués. */
-export function playCard(state, cardUid, declaredAs = null) {
+export function playCard(state, cardUid) {
   const p = activePlayer(state);
   const hand = state.hands[p.id];
   const idx = hand.findIndex((c) => c.uid === cardUid);
   if (idx === -1) throw new Error('Carte absente de la main');
   const card = hand[idx];
-  const effectiveId = card.cardId === 'carte_vierge' ? (declaredAs || 'passe') : card.cardId;
+  const effectiveId = card.cardId;
 
-  if (card.cardId !== 'carte_vierge' && !isLegalForActivePlayer(state, card.cardId)) {
+  if (!isLegalForActivePlayer(state, card.cardId)) {
     throw new Error(`Coup illégal : ${card.cardId}`);
   }
 
   hand.splice(idx, 1);
   const teamId = p.teamId;
-  const effects = resolvePlay(
-    { ...state, activeTeamId: teamId },
-    effectiveId,
-    teamId
-  );
+  const effects = resolvePlay({ ...state, activeTeamId: teamId }, effectiveId, teamId);
 
-  const played = { uid: card.uid, cardId: effectiveId, jokerFor: card.cardId === 'carte_vierge' ? effectiveId : null, teamId, playerId: p.id };
-  state.pileDeJeu.push(played);
-  logEvent(state, { type: 'play', cardId: effectiveId, teamId, playerId: p.id, joker: card.cardId === 'carte_vierge' });
+  state.pileDeJeu.push({ uid: card.uid, cardId: effectiveId, teamId, playerId: p.id });
+  logEvent(state, { type: 'play', cardId: effectiveId, teamId, playerId: p.id });
 
   // Comptage des fautes consécutives (même équipe fautive).
   if (effectiveId === 'faute') {

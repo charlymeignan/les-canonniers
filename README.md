@@ -32,12 +32,13 @@ python3 -m http.server 8000
   retrait. Le bandeau de consigne rappelle ce que la carte exposée autorise.
 
 L'écran **Règles** contient un aide-mémoire, la table de succession complète et
-la galerie des 109 cartes avec leurs quantités.
+la galerie des 108 cartes avec leurs quantités.
 
 ## Ce que contient le deck
 
-109 cartes, conformes à l'exemplaire documenté : 108 cartes jouables et une carte
-vierge.
+108 cartes jouables, conformes à l'exemplaire documenté. La boîte contenait aussi
+une carte vierge : c'est une carte de remplacement, sans fonction de jeu, et elle
+n'est pas distribuée.
 
 | Carte | Nb | Carte | Nb | Carte | Nb |
 |---|--:|---|--:|---|--:|
@@ -47,14 +48,13 @@ vierge.
 | Tir au but | 10 | Contre-attaque | 6 | Hors-jeu | 2 |
 | But | 10 | Coup de chance | 4 | Sortie de but | 2 |
 | | | Boulet de canon | 3 | But refusé | 1 |
-| | | | | Carte vierge | 1 |
 
 ## Organisation du code
 
 ```
 index.html            structure des trois écrans (accueil, jeu, règles)
 css/style.css         direction artistique : palette et gabarits relevés du matériel
-js/deck.js            les 109 cartes, quantités et attributs visuels
+js/deck.js            les 108 cartes, quantités et attributs visuels
 js/rules.js           table de succession et légalité des coups — source de vérité
 js/state.js           état de partie et transitions (aucun DOM)
 js/match.js           déroulement d'un tour, partagé par l'interface et les tests
@@ -72,14 +72,14 @@ navigateur et les simulations headless.
 ## Tests
 
 ```sh
-node test/rules.test.mjs        # 27 tests unitaires du moteur
+node test/rules.test.mjs        # 26 tests unitaires du moteur
 node test/simulation.mjs 300    # 300 parties ordinateur contre ordinateur
 node test/ui.test.mjs           # parcours navigateur (serveur requis)
 node test/screenshot.mjs /tmp/shots   # captures mobiles (serveur requis)
 ```
 
 La simulation est le test le plus sévère : à chaque tour, elle vérifie que les
-109 cartes sont toutes présentes et uniques, qu'aucune main ne déborde, que le
+108 cartes sont toutes présentes et uniques, qu'aucune main ne déborde, que le
 camp du ballon reste valide et que la partie progresse. Elle signale aussi toute
 carte **jamais posée** sur l'ensemble des parties — c'est ainsi qu'a été détecté
 un vrai bug de transcription : la carte `penalty` était strictement injouable
@@ -108,9 +108,10 @@ Trois points ont demandé une interprétation, tous documentés en détail dans
 1. **Le tableau des pages 13-15 et le texte des cartes ne se découpent pas
    pareil** — le premier classe par position du ballon, le second par équipe
    (noir/rouge). Le moteur suit la convention des cartes, sauf là où le tableau
-   est plus précis.
-2. **La carte vierge** n'est décrite nulle part dans le livret retrouvé. Elle est
-   jouée ici comme un joker, sur déclaration du joueur. Extrapolation assumée.
+   est plus précis : après un hors-jeu, le coup franc revient à l'équipe qui l'a
+   signalé, c'est-à-dire celle qui défendait.
+2. **La carte vierge** n'est décrite nulle part dans le livret. Traitée comme une
+   carte de remplacement sans fonction de jeu : elle n'est pas distribuée.
 3. **Le déblocage de la pile** : quand plus personne ne peut enchaîner sur la
    carte exposée, la pile part à la défausse et la partie repart sur un coup
    d'envoi. Le livret ne prévoit ce cas que pour le coup d'envoi ; la règle a été
