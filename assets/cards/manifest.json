@@ -1,4 +1,25 @@
 {
-  "cards": {},
-  "art": {}
+  "cards": {
+    "passe": "passe.webp",
+    "contre_attaque": "contre_attaque.webp",
+    "interception": "interception.webp",
+    "degagement": "degagement.webp",
+    "touche": "touche.webp",
+    "tir_au_but": "tir_au_but.webp",
+    "boulet_de_canon": "boulet_de_canon.webp",
+    "coup_de_chance": "coup_de_chance.webp",
+    "but": "but.webp",
+    "but_refuse": "but_refuse.webp",
+    "arret": "arret.webp",
+    "sortie_de_but": "sortie_de_but.webp",
+    "hors_jeu": "hors_jeu.webp",
+    "faute": "faute.webp",
+    "coup_franc": "coup_franc.webp",
+    "corner": "corner.webp",
+    "penalty": "penalty.webp"
+  },
+  "art": {
+    "cover": "cover.webp",
+    "dos-de-carte": "dos-de-carte.webp"
+  }
 }

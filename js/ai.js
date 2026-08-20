@@ -147,6 +147,8 @@ export function chooseCard(state, player, isLegal) {
  */
 export function shouldContinue(state, player, cardsPlayed) {
   if (cardsPlayed >= 3) return false;
+  // Une carte qui menace le but rend la main à la défense (page 10).
+  if (state.turnMustEnd) return false;
   const top = state.pileDeJeu[state.pileDeJeu.length - 1];
   if (!top) return false;
   // On enchaîne tant qu'on tient l'action et qu'on peut la conclure.

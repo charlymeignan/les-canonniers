@@ -32,6 +32,14 @@ page.on('console', (m) => {
 
 const shot = (name) => page.screenshot({ path: `${OUT}/${name}.png` });
 
+/** Ferme le bandeau d'information s'il est ouvert (il bloque les clics). */
+async function fermerMessage() {
+  if (await page.isVisible('#overlay-msg.is-open')) {
+    await page.click('[data-close-overlay="overlay-msg"]', { timeout: 2000 }).catch(() => {});
+    await page.waitForTimeout(150);
+  }
+}
+
 await page.goto(URL, { waitUntil: 'domcontentloaded' });
 await page.waitForTimeout(500);
 await shot('01-accueil');
@@ -66,16 +74,14 @@ await page.evaluate(() => {
 await page.waitForTimeout(200);
 await shot('06-coup-envoi');
 
-// On pose la passe, puis le tir au but : la consigne et la pile doivent suivre.
+// On pose la passe : la consigne et la pile doivent suivre.
 await page.click('.hand-scroll .card--playable');
 await page.click('#btn-play');
 await page.waitForTimeout(300);
+await fermerMessage();
 await shot('07-passe-posee');
 
-await page.click('.hand-scroll .card--playable');
-await page.click('#btn-play');
-await page.waitForTimeout(300);
-await shot('08-tir-au-but');
+await fermerMessage();
 
 // Défense restreinte : on expose un boulet de canon et on regarde la consigne.
 await page.evaluate(() => {
@@ -103,6 +109,7 @@ await page.evaluate(() => {
   api.reveal();
   api.render();
 });
+await fermerMessage();
 await page.click('.hand-scroll .card--playable');
 await page.click('#btn-play');
 await page.waitForTimeout(350);

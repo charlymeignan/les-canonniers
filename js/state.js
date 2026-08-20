@@ -3,7 +3,7 @@
 // fonctions pures/quasi-pures qui mutent l'état de jeu de façon contrôlée.
 
 import { buildFullDeck, shuffle, CARD_DEFS } from './deck.js';
-import { getLegalCardIds, isLegalPlay, resolvePlay } from './rules.js';
+import { getLegalCardIds, isLegalPlay, resolvePlay, threatensGoal } from './rules.js';
 
 export const TEAM_VERT = 'vert';
 export const TEAM_BLANC = 'blanc';
@@ -58,6 +58,7 @@ export function createGame(seats, rng = Math.random) {
     pendingGoal: null,
     consecutivePasses: 0,
     turnCardsPlayed: 0,
+    turnMustEnd: false,
     turnPhase: 'kickoff', // 'kickoff' | 'draw' | 'play' | 'refill' | 'but-refuse-window' | 'over'
     history: [],
     kickoffCandidates: null,
@@ -104,10 +105,24 @@ export function playButRefuseOutOfTurn(state, playerId, cardUid) {
   const teamId = playerTeam(state, playerId);
   state.pileDeJeu.push({ uid: card.uid, cardId: 'but_refuse', teamId, playerId });
   logEvent(state, { type: 'play', cardId: 'but_refuse', teamId, playerId });
+
+  const scorerId = state.pendingGoal.playerId;
   resolveButRefuse(state);
+
+  // Page 12 : « L'auteur du but refusé prend deux cartes au talon — l'une pour
+  // remplacer la carte but refusé, l'autre comme d'habitude avant de jouer — et
+  // joue immédiatement un nouveau coup d'envoi. »
+  for (let i = 0; i < 2 && state.talon.length > 0; i++) hand.push(state.talon.pop());
+
+  // « Ce dernier complète alors à huit ses cartes en main et perd le bénéfice
+  // du but et de la remise en jeu. »
+  const scorerHand = state.hands[scorerId];
+  while (scorerHand.length < 8 && state.talon.length > 0) scorerHand.push(state.talon.pop());
+
   state.ballCamp = 'centre';
   state.currentPlayerIndex = state.players.findIndex((pl) => pl.id === playerId);
   state.turnCardsPlayed = 0;
+  state.turnMustEnd = false;
   state.turnPhase = 'play';
 }
 
@@ -142,6 +157,7 @@ export function drawForTurn(state) {
   }
   state.turnPhase = 'play';
   state.turnCardsPlayed = 0;
+  state.turnMustEnd = false;
 }
 
 /** Cartes jouables par le joueur actif dans son état actuel (main filtrée). */
@@ -226,7 +242,28 @@ export function playCard(state, cardUid) {
   }
 
   state.turnCardsPlayed += 1;
+
+  // Page 10 : entre le tir et le but, « l'adversaire doit jouer entre temps ».
+  // Une carte qui menace le but rend donc la main, pour que la défense ait sa
+  // fenêtre. Sans cela le tireur enchaînerait tir + but dans le même tour et
+  // aucune parade ne serait jamais jouable.
+  if (threatensGoal(effectiveId, state.freeKickMode)) {
+    state.turnMustEnd = true;
+  }
+
   return effects;
+}
+
+/**
+ * Le joueur actif doit-il se défausser avant de pouvoir rendre la main ?
+ *
+ * Après la pioche la main compte neuf cartes. Si le tour se termine sans qu'une
+ * seule carte ait été posée, il faut en déposer une sur la pile de défausse
+ * pour revenir à huit (page 9).
+ */
+export function mustDiscard(state) {
+  const p = activePlayer(state);
+  return !!p && state.hands[p.id].length > 8;
 }
 
 /** À appeler quand la fenêtre "but refusé" est passée sans riposte : le but est validé. */
@@ -245,6 +282,7 @@ export function confirmGoal(state) {
   state.pendingGoal = null;
   state.turnPhase = 'play';
   state.turnCardsPlayed = 0;
+  state.turnMustEnd = false;
   state.currentPlayerIndex = state.players.findIndex((pl) => pl.id === playerId);
   checkVictory(state);
 }
@@ -283,10 +321,14 @@ export function discardExcess(state, cardUid) {
   state.defausse.push(hand.splice(idx, 1)[0]);
 }
 
+/**
+ * Clôt le tour du joueur actif. Renvoie false — sans rien changer — si une
+ * défausse est due : c'est à l'appelant de la demander, puis de rappeler.
+ */
 export function endTurn(state) {
   const p = activePlayer(state);
   const hand = state.hands[p.id];
-  if (hand.length > 8) return; // attendre la défausse
+  if (hand.length > 8) return false;
 
   // Un tour sans aucune carte posée est un "passe". Si tout le monde passe à la
   // suite, la situation est bloquée : personne ne peut enchaîner sur la carte
@@ -314,7 +356,9 @@ export function endTurn(state) {
   state.currentPlayerIndex = nextSeatIndex(state, state.currentPlayerIndex);
   state.turnPhase = 'draw';
   state.turnCardsPlayed = 0;
+  state.turnMustEnd = false;
   checkExhaustion(state);
+  return true;
 }
 
 /**

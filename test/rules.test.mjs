@@ -1,11 +1,17 @@
-// test/rules.test.mjs — Tests du moteur de règles (aucune dépendance, Node natif).
+// test/rules.test.mjs — Le moteur est-il conforme au livret ?
+//
+// Chaque test cite la cellule de docs/regles-reference.md qu'il vérifie. La
+// transcription est la référence : si un test échoue, c'est le moteur qui a
+// tort, pas le livret.
+//
 // Lancer avec : node test/rules.test.mjs
 import assert from 'node:assert/strict';
 import { totalCardCount, buildFullDeck, CARD_DEFS, CARD_ORDER } from '../js/deck.js';
-import { getLegalCardIds, isLegalPlay, resolvePlay, SUCCESSION } from '../js/rules.js';
+import { getLegalCardIds, isLegalPlay, changesCamp, threatensGoal } from '../js/rules.js';
 import {
-  createGame, activePlayer, playCard, drawForTurn, confirmGoal, endTurn,
-  butRefuseHolders, playButRefuseOutOfTurn, legalHandCards, TEAM_VERT, TEAM_BLANC,
+  createGame, activePlayer, playCard, endTurn, butRefuseHolders,
+  playButRefuseOutOfTurn, legalHandCards, mustDiscard, discardExcess,
+  TEAM_VERT, TEAM_BLANC,
 } from '../js/state.js';
 
 let passed = 0;
@@ -16,259 +22,307 @@ function test(name, fn) {
     console.log(`  ok - ${name}`);
   } catch (err) {
     console.error(`FAIL - ${name}`);
-    console.error(err);
+    console.error('       ' + String(err.message).split('\n')[0]);
     process.exitCode = 1;
   }
 }
 
-// Générateur pseudo-aléatoire déterministe pour des tests reproductibles.
 function seededRng(seed) {
   let s = seed;
-  return () => {
-    s = (s * 1103515245 + 12345) & 0x7fffffff;
-    return s / 0x7fffffff;
-  };
+  return () => { s = (s * 1103515245 + 12345) & 0x7fffffff; return s / 0x7fffffff; };
 }
 
+/** Raccourci : que peut jouer `equipe` face à `carte` posée par `poseur` ? */
+function coups(carte, poseur, equipe, ballCamp, extra = {}) {
+  return getLegalCardIds({
+    pileDeJeu: [{ cardId: carte, teamId: poseur }],
+    activeTeamId: equipe, ballCamp, ...extra,
+  }).legalIds;
+}
+
+const V = TEAM_VERT, B = TEAM_BLANC;
+
 console.log('Deck');
-test('108 cartes jouables (la carte vierge de la boîte n’est pas distribuée)', () => {
+test('108 cartes jouables ; la carte vierge n’est pas distribuée', () => {
   assert.equal(totalCardCount(), 108);
-  assert.ok(!CARD_ORDER.includes('carte_vierge'), 'la carte vierge ne doit pas être dans le deck');
+  assert.ok(!CARD_ORDER.includes('carte_vierge'));
+  assert.equal(buildFullDeck().length, 108);
 });
-test('quantités individuelles conformes à l’inventaire', () => {
-  const expected = {
+test('quantités conformes à l’inventaire', () => {
+  const attendu = {
     tir_au_but: 10, boulet_de_canon: 3, touche: 2, coup_de_chance: 4, sortie_de_but: 2,
     faute: 10, corner: 2, penalty: 2, but: 10, degagement: 10, interception: 13,
-    but_refuse: 1, hors_jeu: 2, passe: 12, coup_franc: 8, arret: 11,
-    contre_attaque: 6,
+    but_refuse: 1, hors_jeu: 2, passe: 12, coup_franc: 8, arret: 11, contre_attaque: 6,
   };
-  for (const [id, qty] of Object.entries(expected)) {
-    assert.equal(CARD_DEFS[id].qty, qty, `quantité ${id}`);
+  for (const [id, q] of Object.entries(attendu)) assert.equal(CARD_DEFS[id].qty, q, id);
+});
+
+console.log('\nPage 13 — PASSE');
+test('posée par votre équipe, ballon camp adverse (attaquez)', () => {
+  assert.deepEqual(coups('passe', V, V, B),
+    ['tir_au_but', 'coup_de_chance', 'boulet_de_canon', 'passe']);
+});
+test('posée par votre équipe, ballon votre camp (ripostez)', () => {
+  assert.deepEqual(coups('passe', V, V, V),
+    ['contre_attaque', 'degagement', 'passe']);
+});
+test('posée par vos adversaires, ballon camp adverse', () => {
+  assert.deepEqual(coups('passe', B, V, B),
+    ['faute', 'corner', 'interception', 'contre_attaque']);
+});
+test('posée par vos adversaires, ballon votre camp', () => {
+  assert.deepEqual(coups('passe', B, V, V),
+    ['faute', 'touche', 'interception', 'contre_attaque']);
+});
+
+console.log('\nPage 13 — INTERCEPTION');
+test('posée par votre équipe, ballon camp adverse', () => {
+  assert.deepEqual(coups('interception', V, V, B),
+    ['tir_au_but', 'coup_de_chance', 'boulet_de_canon', 'passe']);
+});
+test('posée par votre équipe, ballon votre camp', () => {
+  assert.deepEqual(coups('interception', V, V, V),
+    ['contre_attaque', 'degagement', 'passe']);
+});
+test('posée par vos adversaires, ballon votre camp', () => {
+  assert.deepEqual(coups('interception', B, V, V),
+    ['faute', 'interception', 'contre_attaque']);
+});
+
+console.log('\nPage 14 — DÉGAGEMENT, CONTRE-ATTAQUE, TIR AU BUT');
+test('dégagement, ballon camp adverse', () => {
+  assert.deepEqual(coups('degagement', V, V, B),
+    ['tir_au_but', 'coup_de_chance', 'boulet_de_canon', 'passe']);
+});
+test('dégagement, ballon votre camp', () => {
+  assert.deepEqual(coups('degagement', V, V, V),
+    ['contre_attaque', 'interception', 'touche', 'faute']);
+});
+test('contre-attaque, ballon camp adverse', () => {
+  assert.deepEqual(coups('contre_attaque', V, V, B),
+    ['tir_au_but', 'coup_de_chance', 'boulet_de_canon', 'passe']);
+});
+test('tir au but, côté attaque : BUT, ou renforcer par boulet / coup de chance', () => {
+  assert.deepEqual(coups('tir_au_but', V, V, B),
+    ['but', 'boulet_de_canon', 'coup_de_chance']);
+});
+test('tir au but, côté défense : les sept ripostes du tableau', () => {
+  assert.deepEqual(coups('tir_au_but', B, V, V),
+    ['interception', 'contre_attaque', 'arret', 'coup_de_chance',
+     'sortie_de_but', 'hors_jeu', 'faute']);
+});
+
+console.log('\nPage 14 — BOULET DE CANON : « pas d’autres parades possibles »');
+test('la défense n’a que arrêt et coup de chance', () => {
+  const r = getLegalCardIds({
+    pileDeJeu: [{ cardId: 'boulet_de_canon', teamId: V }], activeTeamId: B, ballCamp: B,
+  });
+  assert.deepEqual(r.legalIds, ['arret', 'coup_de_chance']);
+  assert.ok(r.restricted);
+  for (const interdite of ['faute', 'hors_jeu', 'touche', 'interception']) {
+    assert.ok(!r.legalIds.includes(interdite),
+      `${interdite} ne peut pas être jouée sur un boulet de canon (page 12)`);
   }
 });
-test('buildFullDeck() produit 108 cartes uniques (uid)', () => {
-  const deck = buildFullDeck();
-  assert.equal(deck.length, 108);
-  assert.equal(new Set(deck.map((c) => c.uid)).size, 108);
+test('un seul arrêt ne suffit pas : l’attaque peut encore conclure', () => {
+  const pile = [{ cardId: 'boulet_de_canon', teamId: V }, { cardId: 'arret', teamId: B }];
+  assert.deepEqual(
+    getLegalCardIds({ pileDeJeu: pile, activeTeamId: V, ballCamp: B }).legalIds, ['but']);
+});
+test('deux arrêts coup sur coup stoppent le tir', () => {
+  const pile = [
+    { cardId: 'boulet_de_canon', teamId: V },
+    { cardId: 'arret', teamId: B }, { cardId: 'arret', teamId: B },
+  ];
+  const r = getLegalCardIds({ pileDeJeu: pile, activeTeamId: B, ballCamp: B });
+  assert.ok(!r.legalIds.includes('but'));
+  assert.deepEqual(r.legalIds, ['interception', 'contre_attaque']);
+});
+test('un arrêt et un coup de chance stoppent aussi le tir', () => {
+  const pile = [
+    { cardId: 'penalty', teamId: V },
+    { cardId: 'arret', teamId: B }, { cardId: 'coup_de_chance', teamId: B },
+  ];
+  assert.ok(!getLegalCardIds({ pileDeJeu: pile, activeTeamId: V, ballCamp: B })
+    .legalIds.includes('but'));
 });
 
-console.log('\nSuccession — coup d’envoi');
-test('aucune carte posée : seule "passe" est légale', () => {
-  const state = { pileDeJeu: [], activeTeamId: TEAM_VERT };
-  const { legalIds } = getLegalCardIds(state);
-  assert.ok(legalIds.includes('passe'));
-  assert.ok(!legalIds.includes('tir_au_but'));
+console.log('\nPage 16 — Fautes, coup franc, penalty');
+test('1 seule faute → coup franc indirect, des deux côtés du tableau', () => {
+  assert.deepEqual(coups('faute', B, V, B, { consecutiveFautes: 1 }), ['coup_franc']);
+  assert.deepEqual(coups('faute', B, V, V, { consecutiveFautes: 1 }), ['coup_franc']);
+});
+test('2 fautes coup sur coup, côté attaque → coup franc direct ou penalty', () => {
+  const r = getLegalCardIds({
+    pileDeJeu: [{ cardId: 'faute', teamId: B }], activeTeamId: V, ballCamp: B,
+    consecutiveFautes: 2,
+  });
+  assert.deepEqual(r.legalIds, ['coup_franc', 'penalty']);
+  assert.equal(r.freeKickMode, 'direct');
+});
+test('2 fautes coup sur coup, côté riposte → coup franc direct seul', () => {
+  assert.deepEqual(
+    coups('faute', B, V, V, { consecutiveFautes: 2 }), ['coup_franc']);
+});
+test('l’équipe fautive peut en commettre une seconde, pas une troisième', () => {
+  assert.deepEqual(coups('faute', V, V, B, { consecutiveFautes: 1 }), ['faute']);
+  assert.deepEqual(coups('faute', V, V, B, { consecutiveFautes: 2 }), []);
+});
+test('coup franc indirect : le botteur ne peut pas marquer directement', () => {
+  const ids = coups('coup_franc', V, V, B, { freeKickMode: 'indirect' });
+  assert.deepEqual(ids, ['tir_au_but', 'boulet_de_canon', 'passe']);
+  assert.ok(!ids.includes('but'));
+});
+test('coup franc direct : BUT, et défense fermée', () => {
+  assert.deepEqual(coups('coup_franc', V, V, B, { freeKickMode: 'direct' }), ['but']);
+  assert.deepEqual(coups('coup_franc', V, B, B, { freeKickMode: 'direct' }),
+    ['arret', 'coup_de_chance']);
+});
+test('penalty : mêmes pouvoirs que le boulet de canon', () => {
+  assert.deepEqual(coups('penalty', V, V, B), ['but']);
+  assert.deepEqual(coups('penalty', V, B, B), ['arret', 'coup_de_chance']);
 });
 
-console.log('\nSuccession — cartes de circulation');
-test('passe jouée par l’équipe adverse => riposte possible avec faute/touche/interception/contre-attaque', () => {
-  const state = {
-    pileDeJeu: [{ cardId: 'passe', teamId: TEAM_VERT }],
-    activeTeamId: TEAM_BLANC,
-  };
-  const { legalIds, reason } = getLegalCardIds(state);
-  assert.equal(reason, 'rival');
-  for (const id of ['faute', 'touche', 'interception', 'contre_attaque', 'corner']) {
-    assert.ok(legalIds.includes(id), `${id} devrait être légal`);
+console.log('\nPages 15-16 — Cartes de l’arbitre');
+test('hors-jeu : le coup franc revient à l’équipe qui l’a signalé', () => {
+  assert.deepEqual(coups('hors_jeu', V, B, B), ['coup_franc']);
+  assert.deepEqual(coups('hors_jeu', V, V, B), []);
+});
+test('sortie de but : « vous devez jouer DÉGAGEMENT »', () => {
+  assert.deepEqual(coups('sortie_de_but', V, B, B), ['degagement']);
+});
+test('arrêt : « jouez interception, contre-attaque »', () => {
+  assert.deepEqual(coups('arret', V, V, B), ['interception', 'contre_attaque']);
+});
+test('corner : tir au but ou passe en attaque, quatre ripostes', () => {
+  assert.deepEqual(coups('corner', V, V, B), ['tir_au_but', 'passe']);
+  assert.deepEqual(coups('corner', V, B, B), ['interception', 'faute', 'contre_attaque']);
+});
+test('touche posée par votre équipe : vous reprenez le contrôle', () => {
+  assert.deepEqual(coups('touche', V, V, B),
+    ['tir_au_but', 'coup_de_chance', 'boulet_de_canon', 'passe']);
+  assert.deepEqual(coups('touche', V, V, V), ['degagement', 'contre_attaque', 'passe']);
+});
+test('touche posée par l’adversaire', () => {
+  assert.deepEqual(coups('touche', B, V, B), ['interception', 'faute']);
+  assert.deepEqual(coups('touche', B, V, V), ['contre_attaque', 'interception', 'faute']);
+});
+test('but : « votre seule possibilité : jouer BUT REFUSÉ »', () => {
+  const r = getLegalCardIds({
+    pileDeJeu: [{ cardId: 'but', teamId: V }], activeTeamId: B, ballCamp: B,
+    pendingGoal: { teamId: V },
+  });
+  assert.deepEqual(r.legalIds, ['but_refuse']);
+});
+test('but refusé : « jouez passe, et attaquez à votre tour »', () => {
+  assert.deepEqual(coups('but_refuse', B, V, V), ['passe']);
+});
+
+console.log('\nPage 12 — Mouvements du ballon');
+const pile = (...ids) => ({ pileDeJeu: ids.map((c) => typeof c === 'string'
+  ? { cardId: c, teamId: V } : c), ballCamp: B });
+test('1 - contre-attaque exposée', () => {
+  assert.ok(changesCamp(pile('passe'), 'contre_attaque', V));
+});
+test('2 - interception suivie de dégagement, boulet de canon, ou deux passes', () => {
+  assert.ok(changesCamp(pile('interception'), 'degagement', V));
+  assert.ok(changesCamp(pile('interception'), 'boulet_de_canon', V));
+  assert.ok(changesCamp(pile('interception', 'passe'), 'passe', V));
+  assert.ok(!changesCamp(pile('interception'), 'passe', V), 'une seule passe ne suffit pas');
+});
+test('3 - après une touche, suivie de passe, dégagement ou contre-attaque', () => {
+  assert.ok(changesCamp(pile('touche'), 'passe', V));
+  assert.ok(changesCamp(pile('touche'), 'degagement', V));
+  assert.ok(changesCamp(pile('touche'), 'contre_attaque', V));
+});
+test('4 - faute de l’équipe menacée, sanctionnée par un coup franc', () => {
+  const st = { pileDeJeu: [{ cardId: 'faute', teamId: V }], ballCamp: V };
+  assert.ok(changesCamp(st, 'coup_franc', B), 'la faute a été commise dans son propre camp');
+});
+test('l’arrêt vaut dégagement : le ballon change de camp', () => {
+  assert.ok(changesCamp(pile('tir_au_but'), 'arret', B));
+});
+test('coup d’envoi : la passe envoie le ballon dans le camp adverse', () => {
+  assert.ok(changesCamp({ pileDeJeu: [], ballCamp: 'centre' }, 'passe', V));
+});
+
+console.log('\nLa défense doit avoir sa fenêtre (page 10)');
+test('un tir rend la main, sauf le coup de chance', () => {
+  for (const c of ['tir_au_but', 'boulet_de_canon', 'penalty']) assert.ok(threatensGoal(c), c);
+  assert.ok(threatensGoal('coup_franc', 'direct'));
+  assert.ok(!threatensGoal('coup_franc', 'indirect'));
+  // « Le joueur vert possède coup de chance et but : il marque. »
+  assert.ok(!threatensGoal('coup_de_chance'));
+  for (const c of ['passe', 'interception', 'degagement', 'arret']) assert.ok(!threatensGoal(c), c);
+});
+test('après un tir au but, le tireur ne conclut pas dans la foulée', () => {
+  const g = createGame(['Alice', 'Bruno'], seededRng(21));
+  g.currentPlayerIndex = 0; g.turnPhase = 'play'; g.ballCamp = TEAM_BLANC;
+  g.pileDeJeu = [{ uid: 'p0', cardId: 'passe', teamId: V, playerId: 'p0' }];
+  g.hands.p0 = [{ uid: 't', cardId: 'tir_au_but' }, { uid: 'b', cardId: 'but' }];
+
+  playCard(g, 't');
+  assert.equal(g.turnMustEnd, true);
+  endTurn(g);
+  assert.equal(activePlayer(g).id, 'p1', 'la main passe à la défense');
+  const riposte = getLegalCardIds({ ...g, activeTeamId: TEAM_BLANC }).legalIds;
+  for (const parade of ['arret', 'interception', 'contre_attaque', 'sortie_de_but', 'hors_jeu']) {
+    assert.ok(riposte.includes(parade), `${parade} doit être jouable`);
   }
-  assert.ok(!legalIds.includes('but'), 'but ne doit pas être jouable directement après passe');
-});
-test('passe jouée par sa propre équipe => on peut enchaîner tir au but / boulet de canon / coup de chance / autre passe', () => {
-  const state = { pileDeJeu: [{ cardId: 'passe', teamId: TEAM_VERT }], activeTeamId: TEAM_VERT };
-  const { legalIds, reason } = getLegalCardIds(state);
-  assert.equal(reason, 'own');
-  for (const id of ['tir_au_but', 'boulet_de_canon', 'coup_de_chance', 'contre_attaque', 'degagement', 'passe']) {
-    assert.ok(legalIds.includes(id), id);
-  }
 });
 
-console.log('\nDéfense restreinte (boulet de canon / penalty / coup franc direct)');
-test('boulet de canon ne peut être stoppé que par arrêt ou coup de chance', () => {
-  const state = { pileDeJeu: [{ cardId: 'boulet_de_canon', teamId: TEAM_VERT }], activeTeamId: TEAM_BLANC };
-  const { legalIds, restricted } = getLegalCardIds(state);
-  assert.ok(restricted);
-  assert.deepEqual(new Set(legalIds), new Set(['arret', 'coup_de_chance']));
-  assert.ok(!isLegalPlay(state, 'interception'), 'interception ne doit pas stopper un boulet de canon');
-});
-test('penalty : même défense restreinte', () => {
-  const state = { pileDeJeu: [{ cardId: 'penalty', teamId: TEAM_VERT }], activeTeamId: TEAM_BLANC };
-  assert.ok(isLegalPlay(state, 'arret'));
-  assert.ok(isLegalPlay(state, 'coup_de_chance'));
-  assert.ok(!isLegalPlay(state, 'faute'));
+console.log('\nDéfausse obligatoire (page 9)');
+test('endTurn refuse de clore tant que la défausse est due', () => {
+  const g = createGame(['Alice', 'Bruno'], seededRng(22));
+  g.currentPlayerIndex = 0; g.turnPhase = 'play'; g.ballCamp = TEAM_VERT;
+  g.pileDeJeu = [{ uid: 'x', cardId: 'arret', teamId: B, playerId: 'p1' }];
+  g.hands.p0 = Array.from({ length: 9 }, (_, i) => ({ uid: `h${i}`, cardId: 'but' }));
+
+  assert.equal(legalHandCards(g).length, 0);
+  assert.equal(mustDiscard(g), true);
+  assert.equal(endTurn(g), false, 'endTurn doit signaler le refus, pas rester sans effet');
+  assert.equal(activePlayer(g).id, 'p0');
+
+  discardExcess(g, 'h0');
+  assert.equal(endTurn(g), true);
+  assert.equal(activePlayer(g).id, 'p1');
 });
 
-console.log('\nFautes et coups francs');
-test('l’équipe fautive peut commettre une seconde faute coup sur coup', () => {
-  // Sans cette suite, la double faute — donc le penalty — serait injouable.
-  const state = { pileDeJeu: [{ cardId: 'faute', teamId: TEAM_VERT }], activeTeamId: TEAM_VERT, consecutiveFautes: 1 };
-  assert.deepEqual(getLegalCardIds(state).legalIds, ['faute']);
-  // Mais pas une troisième : la sanction est déjà maximale.
-  const apresDouble = { pileDeJeu: [{ cardId: 'faute', teamId: TEAM_VERT }], activeTeamId: TEAM_VERT, consecutiveFautes: 2 };
-  assert.deepEqual(getLegalCardIds(apresDouble).legalIds, []);
-});
-test('1 faute => coup franc indirect uniquement', () => {
-  const state = { pileDeJeu: [{ cardId: 'faute', teamId: TEAM_VERT }], activeTeamId: TEAM_BLANC, consecutiveFautes: 1 };
-  const { legalIds, freeKickMode } = getLegalCardIds(state);
-  assert.equal(freeKickMode, 'indirect');
-  assert.ok(legalIds.includes('coup_franc'));
-  assert.ok(!legalIds.includes('penalty'));
-});
-test('2 fautes coup sur coup => coup franc direct OU penalty', () => {
-  const state = { pileDeJeu: [{ cardId: 'faute', teamId: TEAM_VERT }], activeTeamId: TEAM_BLANC, consecutiveFautes: 2 };
-  const { legalIds, freeKickMode } = getLegalCardIds(state);
-  assert.equal(freeKickMode, 'direct');
-  assert.ok(legalIds.includes('coup_franc'));
-  assert.ok(legalIds.includes('penalty'));
-});
-test('coup franc indirect : le botteur ne peut pas marquer directement (pas de "but" en own)', () => {
-  const state = { pileDeJeu: [{ cardId: 'coup_franc', teamId: TEAM_BLANC }], activeTeamId: TEAM_BLANC, freeKickMode: 'indirect' };
-  const { legalIds } = getLegalCardIds(state);
-  assert.ok(!legalIds.includes('but'));
-  assert.ok(legalIds.includes('tir_au_but'));
-});
-test('coup franc direct : le botteur peut marquer directement ("but" en own)', () => {
-  const state = { pileDeJeu: [{ cardId: 'coup_franc', teamId: TEAM_BLANC }], activeTeamId: TEAM_BLANC, freeKickMode: 'direct' };
-  const { legalIds, restricted } = getLegalCardIds(state);
-  assert.ok(legalIds.includes('but'));
-  const rivalCheck = getLegalCardIds({ ...state, activeTeamId: TEAM_VERT });
-  assert.ok(rivalCheck.restricted);
-});
-
-console.log('\nBut refusé');
-test('après un "but", seule but_refuse est jouable (fenêtre spéciale)', () => {
-  const state = { pileDeJeu: [{ cardId: 'but', teamId: TEAM_VERT }], activeTeamId: TEAM_BLANC, pendingGoal: { teamId: TEAM_VERT } };
-  const { legalIds, reason } = getLegalCardIds(state);
-  assert.equal(reason, 'fenetre-but-refuse');
-  assert.deepEqual(legalIds, ['but_refuse']);
-});
-test('après but_refuse, l’équipe qui l’a joué doit rejouer "passe"', () => {
-  const state = { pileDeJeu: [{ cardId: 'but_refuse', teamId: TEAM_BLANC }], activeTeamId: TEAM_BLANC };
-  const { legalIds, reason } = getLegalCardIds(state);
-  assert.equal(reason, 'relance-but-refuse');
-  assert.deepEqual(legalIds, ['passe']);
-});
-
-console.log('\nHors-jeu et corner');
-test('hors-jeu : le coup franc indirect revient à l’équipe qui l’a signalé', () => {
-  // C'est l'équipe qui pose le hors-jeu (celle qui défendait) qui tire ensuite.
-  const signaleur = { pileDeJeu: [{ cardId: 'hors_jeu', teamId: TEAM_VERT }], activeTeamId: TEAM_VERT };
-  const { legalIds, freeKickMode } = getLegalCardIds(signaleur);
-  assert.deepEqual(legalIds, ['coup_franc']);
-  assert.equal(freeKickMode, 'indirect');
-  // L'équipe prise en position de hors-jeu, elle, ne joue rien.
-  const pris = { pileDeJeu: [{ cardId: 'hors_jeu', teamId: TEAM_VERT }], activeTeamId: TEAM_BLANC };
-  assert.deepEqual(getLegalCardIds(pris).legalIds, []);
-});
-test('corner disponible dès que l’équipe active n’a pas l’initiative, quelle que soit la carte exposée', () => {
-  const state = { pileDeJeu: [{ cardId: 'interception', teamId: TEAM_VERT }], activeTeamId: TEAM_BLANC };
-  assert.ok(isLegalPlay(state, 'corner'));
-  const ownSide = { pileDeJeu: [{ cardId: 'interception', teamId: TEAM_VERT }], activeTeamId: TEAM_VERT };
-  assert.ok(!isLegalPlay(ownSide, 'corner'));
-});
-
-console.log('\nChangements de camp (resolvePlay)');
-test('contre-attaque change le camp immédiatement', () => {
-  const state = { pileDeJeu: [{ cardId: 'passe', teamId: TEAM_VERT }], activeTeamId: TEAM_BLANC };
-  const fx = resolvePlay(state, 'contre_attaque', TEAM_BLANC);
-  assert.ok(fx.changesCamp);
-});
-test('dégagement change le camp', () => {
-  const state = { pileDeJeu: [{ cardId: 'interception', teamId: TEAM_BLANC }], activeTeamId: TEAM_BLANC };
-  const fx = resolvePlay(state, 'degagement', TEAM_BLANC);
-  assert.ok(fx.changesCamp);
-});
-test('interception ne change pas le camp', () => {
-  const state = { pileDeJeu: [{ cardId: 'passe', teamId: TEAM_VERT }], activeTeamId: TEAM_BLANC };
-  const fx = resolvePlay(state, 'interception', TEAM_BLANC);
-  assert.ok(!fx.changesCamp);
-});
-
-test('le mode du coup franc survit à la pose de la carte', () => {
-  // Régression : réinitialiser freeKickMode en posant le coup franc transformait
-  // un coup franc direct en indirect, rendant le but impossible à marquer.
-  const g = createGame(['Alice', 'Bruno'], seededRng(11));
-  g.currentPlayerIndex = 0;
-  g.turnPhase = 'play';
-  g.pileDeJeu = [{ uid: 'f1', cardId: 'faute', teamId: TEAM_BLANC, playerId: 'p1' }];
-  g.consecutiveFautes = 2;
-  g.freeKickMode = 'direct';
-  g.hands.p0 = [{ uid: 'cf', cardId: 'coup_franc' }, { uid: 'b', cardId: 'but' }];
-
-  playCard(g, 'cf');
-  assert.equal(g.freeKickMode, 'direct', 'le mode direct doit être conservé');
-  assert.ok(isLegalPlay({ ...g, activeTeamId: TEAM_VERT }, 'but'),
-    'le botteur d’un coup franc direct doit pouvoir marquer');
-});
-
-console.log('\nPartie complète (createGame / playCard)');
-test('createGame distribue 8 cartes à chaque joueur et le reste au talon', () => {
+console.log('\nPartie complète');
+test('distribution : 8 cartes chacun, le reste au talon', () => {
   const g = createGame(['Alice', 'Bruno'], seededRng(42));
   assert.equal(g.hands.p0.length, 8);
   assert.equal(g.hands.p1.length, 8);
   assert.equal(g.talon.length, 108 - 16);
-  assert.equal(g.players[0].teamId, TEAM_VERT);
-  assert.equal(g.players[1].teamId, TEAM_BLANC);
 });
-test('mode 4 joueurs : équipes en alternance vert/blanc/vert/blanc', () => {
+test('4 joueurs : « un joueur d’une équipe adverse entre deux membres d’une même équipe »', () => {
   const g = createGame(['A', 'B', 'C', 'D'], seededRng(7));
-  assert.deepEqual(g.players.map((p) => p.teamId), [TEAM_VERT, TEAM_BLANC, TEAM_VERT, TEAM_BLANC]);
+  assert.deepEqual(g.players.map((p) => p.teamId), [V, B, V, B]);
 });
-test('scénario : passe -> tir au but -> but marque, refusable puis confirmé', () => {
-  const g = createGame(['Alice', 'Bruno'], seededRng(1));
-  g.currentPlayerIndex = 0; // Alice (vert) débute
-  g.turnPhase = 'play';
-
-  // On force la main d'Alice pour un scénario déterministe.
-  g.hands.p0 = [{ uid: 'x1', cardId: 'passe' }, { uid: 'x2', cardId: 'tir_au_but' }, { uid: 'x3', cardId: 'but' }];
-  g.hands.p1 = [{ uid: 'y1', cardId: 'faute' }];
-
-  playCard(g, 'x1'); // passe
-  assert.equal(g.pileDeJeu.at(-1).cardId, 'passe');
-
-  playCard(g, 'x2'); // tir au but (own, continuation)
-  assert.equal(g.pileDeJeu.at(-1).cardId, 'tir_au_but');
-
-  playCard(g, 'x3'); // but
-  assert.ok(g.pendingGoal);
-  assert.equal(g.teams.vert.score, 0, 'le score n’est incrémenté qu’après confirmation');
-
-  assert.deepEqual(butRefuseHolders(g), []); // Bruno n'a pas but_refuse
-  confirmGoal(g);
-  assert.equal(g.teams.vert.score, 1);
-  assert.equal(g.pileDeJeu.length, 0, 'la pile de jeu est ramassée après le but');
-  assert.equal(g.ballCamp, 'centre');
-});
-test('scénario : but refusé annule le score et relance par une passe adverse', () => {
+test('but refusé : l’auteur prend deux cartes au talon (page 12)', () => {
   const g = createGame(['Alice', 'Bruno'], seededRng(2));
-  g.currentPlayerIndex = 0;
-  g.turnPhase = 'play';
-  g.pileDeJeu = [{ uid: 'prev', cardId: 'tir_au_but', teamId: TEAM_VERT, playerId: 'p0' }];
+  g.currentPlayerIndex = 0; g.turnPhase = 'play'; g.ballCamp = TEAM_BLANC;
+  g.pileDeJeu = [{ uid: 'prev', cardId: 'tir_au_but', teamId: V, playerId: 'p0' }];
   g.hands.p0 = [{ uid: 'x1', cardId: 'but' }];
-  g.hands.p1 = [{ uid: 'y1', cardId: 'but_refuse' }, { uid: 'y2', cardId: 'passe' }];
+  g.hands.p1 = [{ uid: 'y1', cardId: 'but_refuse' }];
+  const talonAvant = g.talon.length;
 
   playCard(g, 'x1');
-  assert.ok(g.pendingGoal);
-  const holders = butRefuseHolders(g);
-  assert.equal(holders.length, 1);
-  assert.equal(holders[0].id, 'p1');
-
+  assert.deepEqual(butRefuseHolders(g).map((p) => p.id), ['p1']);
   playButRefuseOutOfTurn(g, 'p1', 'y1');
-  assert.equal(g.teams.vert.score, 0);
-  assert.equal(g.currentPlayerIndex, 1); // Bruno reprend la main
-  assert.ok(isLegalPlay({ ...g, activeTeamId: TEAM_BLANC }, 'passe'));
-  assert.ok(!isLegalPlay({ ...g, activeTeamId: TEAM_BLANC }, 'tir_au_but'));
+
+  assert.equal(g.teams.vert.score, 0, 'le but est annulé');
+  assert.equal(g.hands.p1.length, 2, 'deux cartes prises au talon');
+  assert.ok(g.talon.length < talonAvant);
+  assert.equal(g.currentPlayerIndex, 1, 'il joue immédiatement un nouveau coup d’envoi');
 });
-test('coup illégal rejeté (lève une erreur)', () => {
+test('coup illégal rejeté', () => {
   const g = createGame(['Alice', 'Bruno'], seededRng(4));
-  g.currentPlayerIndex = 0;
-  g.turnPhase = 'play';
-  g.hands.p0 = [{ uid: 'z1', cardId: 'but' }]; // "but" n'est jamais légal au coup d'envoi
+  g.currentPlayerIndex = 0; g.turnPhase = 'play'; g.ballCamp = 'centre';
+  g.hands.p0 = [{ uid: 'z1', cardId: 'but' }];
   assert.throws(() => playCard(g, 'z1'));
 });
 
 console.log(`\n${passed} test(s) réussi(s).`);
-if (process.exitCode) {
-  console.error('Des tests ont échoué.');
-} else {
-  console.log('Tous les tests sont au vert.');
-}
+if (process.exitCode) console.error('Des tests ont échoué.');
+else console.log('Le moteur est conforme à la transcription.');

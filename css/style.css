@@ -172,10 +172,10 @@ button { font: inherit; color: inherit; border: none; background: none; cursor: 
 /* Le tireur de la couverture, en aplats. */
 .cover-figure {
   position: absolute;
-  left: -3%;
-  bottom: 6%;
-  width: 70%;
-  height: 90%;
+  left: -2%;
+  bottom: 3%;
+  width: 84%;
+  height: 97%;
 }
 .cover-figure svg { width: 100%; height: 100%; display: block; }
 
@@ -799,7 +799,7 @@ button { font: inherit; color: inherit; border: none; background: none; cursor: 
 
 .card-illus {
   position: absolute;
-  inset: 21% 3% 20% 40%;
+  inset: 17% 2% 14% 34%;
   pointer-events: none;
 }
 .card-illus svg { width: 100%; height: 100%; display: block; }

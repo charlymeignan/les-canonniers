@@ -8,7 +8,7 @@ import { ICON_BUILDERS, illustration, ballSvg, coverStriker, loadCardArt, cardAr
 import {
   createGame, activePlayer, drawForTurn, playCard, confirmGoal, endTurn,
   legalHandCards, currentLegalInfo, butRefuseHolders, playButRefuseOutOfTurn,
-  otherTeam, TEAM_VERT, TEAM_BLANC,
+  mustDiscard, discardExcess, otherTeam, TEAM_VERT, TEAM_BLANC,
 } from './state.js';
 import { aiTurn } from './match.js';
 
@@ -105,18 +105,31 @@ function renderCardHead(def) {
   }
 }
 
+// Listes imprimées sur la carte (page 11) : « En noir : la série de cartes
+// parmi lesquelles les équipiers peuvent choisir pour continuer l'action
+// entreprise ; en rouge : la série des cartes parmi lesquelles les adversaires
+// peuvent choisir pour gêner l'action entreprise. »
+//
+// Le tableau distinguant en plus la position du ballon, la carte imprimée
+// réunit les deux colonnes : c'est bien ce que montrent les photos du matériel.
+function fusionner(...listes) {
+  return [...new Set(listes.flat().filter(Boolean))];
+}
+
 function ownIdsFor(cardId) {
-  const s = SUCCESSION[cardId];
-  if (!s) return [];
-  if (s.modes) return [...new Set([...s.modes.indirect.own, ...s.modes.direct.own])];
-  return s.own || [];
+  const d = SUCCESSION[cardId];
+  if (!d) return [];
+  if (d.modes) return fusionner(d.modes.indirect.attaque, d.modes.direct.attaque);
+  if (d.split) return fusionner(d.own.attaque, d.own.riposte);
+  return fusionner(d.attaque);
 }
 
 function rivalIdsFor(cardId) {
-  const s = SUCCESSION[cardId];
-  if (!s) return [];
-  if (s.modes) return [...new Set([...s.modes.indirect.rival, ...s.modes.direct.rival])];
-  return s.rival || [];
+  const d = SUCCESSION[cardId];
+  if (!d) return [];
+  if (d.modes) return fusionner(d.modes.indirect.riposte, d.modes.direct.riposte);
+  if (d.split) return fusionner(d.rival.attaque, d.rival.riposte);
+  return fusionner(d.riposte, d.doubleAttaque);
 }
 
 // ------------------------------------------------------------------- écrans --
@@ -264,11 +277,11 @@ function renderHand() {
 }
 
 function renderActions() {
-  const canPlay = handRevealed && legalHandCards(game).length > 0;
+  const rienAJouer = handRevealed && legalHandCards(game).length === 0;
   $('#btn-play').disabled = !selectedUid;
-  $('#btn-end').textContent = canPlay && game.turnCardsPlayed === 0
-    ? 'Passer son tour'
-    : 'Fin du tour';
+  $('#btn-end').textContent = rienAJouer
+    ? 'Se défausser'
+    : (game.turnCardsPlayed === 0 ? 'Passer son tour' : 'Fin du tour');
 }
 
 // -------------------------------------------------------------- interactions -
@@ -324,6 +337,18 @@ function afterPlay(playedId) {
     return;
   }
 
+  // Une carte qui menace le but rend la main : l'adversaire doit pouvoir
+  // s'interposer avant la conclusion (page 10).
+  if (game.turnMustEnd) {
+    flashMessage(
+      'À l\'adversaire de jouer',
+      `Vous menacez le but. L'adversaire a maintenant sa chance de s'interposer ; `
+      + `si personne ne l'arrête, votre camp pourra conclure au tour suivant.`,
+      'gold');
+    finishTurn();
+    return;
+  }
+
   // Trois cartes consécutives au maximum par tour (page 9).
   if (game.turnCardsPlayed >= 3) {
     flashMessage('Trois cartes posées', 'Vous avez posé le maximum de trois cartes consécutives. Le tour passe au joueur suivant.');
@@ -331,12 +356,38 @@ function afterPlay(playedId) {
   }
 }
 
+/**
+ * Clôt le tour. Si la main compte encore neuf cartes — le joueur a pioché sans
+ * rien poser — le livret impose de se défausser (page 9) : on le lui demande
+ * plutôt que de laisser le bouton sans effet.
+ */
 function finishTurn() {
+  if (mustDiscard(game)) {
+    openDiscardPicker();
+    return;
+  }
   endTurn(game);
   selectedUid = null;
   handRevealed = false;
   render();
   openPassScreen();
+}
+
+/** Sélecteur de défausse : le joueur choisit la carte dont il se sépare. */
+function openDiscardPicker() {
+  const p = activePlayer(game);
+  const bloque = legalHandCards(game).length === 0;
+  $('#discard-text').textContent = bloque
+    ? "Aucune de vos cartes ne peut suivre la carte exposée. Déposez-en une sur la pile de défausse : la main passe au joueur suivant."
+    : "Vous passez sans rien poser. Déposez une carte sur la pile de défausse pour revenir à huit cartes en main.";
+  $('#discard-grid').innerHTML = game.hands[p.id]
+    .map((card) => renderCard(card.cardId)
+      .replace('<div class="card', `<button type="button" data-discard="${card.uid}" class="card`)
+      .replace(/<\/div>$/, '</button>'))
+    .join('');
+  handRevealed = true;
+  render();
+  openOverlay('overlay-discard');
 }
 
 /**
@@ -551,8 +602,15 @@ function renderCover() {
   $('#cover-ball').innerHTML = ballSvg(40);
 
   // Motif du dos de carte, s'il a été fourni sous forme d'image.
+  //
+  // L'URL est résolue en absolu : dans une variable CSS, un chemin relatif est
+  // résolu contre la feuille de style qui l'utilise (css/style.css) et non
+  // contre le document, ce qui donnait /css/assets/cards/… et un 404.
   const back = cardArtUrl('dos-de-carte');
-  if (back) document.documentElement.style.setProperty('--card-back-art', `url("${back}")`);
+  if (back) {
+    const absolu = new URL(back, document.baseURI).href;
+    document.documentElement.style.setProperty('--card-back-art', `url("${absolu}")`);
+  }
 }
 
 export async function bindUI() {
@@ -634,6 +692,18 @@ export async function bindUI() {
   });
 
   $('#pass-reveal').addEventListener('click', revealHand);
+
+  $('#discard-grid').addEventListener('click', (e) => {
+    const btn = e.target.closest('[data-discard]');
+    if (!btn) return;
+    discardExcess(game, btn.dataset.discard);
+    closeOverlay('overlay-discard');
+    endTurn(game);
+    selectedUid = null;
+    handRevealed = false;
+    render();
+    openPassScreen();
+  });
 
   $('#refuse-actions').addEventListener('click', (e) => {
     const play = e.target.closest('[data-refuse-player]');

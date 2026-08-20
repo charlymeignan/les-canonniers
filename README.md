@@ -74,7 +74,7 @@ navigateur et les simulations headless.
 ## Tests
 
 ```sh
-node test/rules.test.mjs        # 26 tests unitaires du moteur
+node test/rules.test.mjs        # 46 tests, chacun citant sa cellule du livret
 node test/simulation.mjs 300    # 300 parties ordinateur contre ordinateur
 node test/ui.test.mjs           # parcours navigateur (serveur requis)
 node test/screenshot.mjs /tmp/shots   # captures mobiles (serveur requis)
@@ -139,22 +139,20 @@ sur un dépôt public seulement ; sur un dépôt privé il faut un compte payant
 Les chemins du projet sont tous relatifs : le site fonctionne aussi bien à la
 racine d'un domaine que dans un sous-répertoire.
 
-## Points de règle arbitrés
+## Les règles font foi
 
-Trois points ont demandé une interprétation, tous documentés en détail dans
-[`docs/regles-implementees.md`](docs/regles-implementees.md) :
+[`docs/regles-reference.md`](docs/regles-reference.md) est la **transcription
+verbatim du livret**, page par page, faite depuis le scan en 1150 × 1638. C'est
+la source unique : `js/rules.js` en est la traduction en code, et chacun des 46
+tests cite la cellule qu'il vérifie. Si un test échoue, c'est le moteur qui a
+tort.
 
-1. **Le tableau des pages 13-15 et le texte des cartes ne se découpent pas
-   pareil** — le premier classe par position du ballon, le second par équipe
-   (noir/rouge). Le moteur suit la convention des cartes, sauf là où le tableau
-   est plus précis : après un hors-jeu, le coup franc revient à l'équipe qui l'a
-   signalé, c'est-à-dire celle qui défendait.
-2. **La carte vierge** n'est décrite nulle part dans le livret. Traitée comme une
-   carte de remplacement sans fonction de jeu : elle n'est pas distribuée.
-3. **Le déblocage de la pile** : quand plus personne ne peut enchaîner sur la
-   carte exposée, la pile part à la défausse et la partie repart sur un coup
-   d'envoi. Le livret ne prévoit ce cas que pour le coup d'envoi ; la règle a été
-   étendue à toute la partie.
+Le tableau des pages 13 à 16 croise **deux** critères — la carte exposée (et qui
+l'a posée) *et* la position du ballon — et le moteur reproduit les deux axes.
+
+[`docs/regles-implementees.md`](docs/regles-implementees.md) recense les quatre
+points où le passage du livret au code a demandé une décision, dont un seul ajout
+véritable : le déblocage de la pile quand plus personne ne peut enchaîner.
 
 ## Sources
 

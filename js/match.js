@@ -47,8 +47,8 @@ export function* aiTurn(state) {
   }
 
   // Aucun coup possible : le joueur dépose une carte sur la pile de défausse et
-  // passe la main (page 10). C'est ce qui fait avancer la partie vers sa fin une
-  // fois le talon épuisé : sans cela, plus rien ne bougerait.
+  // passe la main (page 9). C'est aussi ce qui fait avancer la partie vers sa
+  // fin une fois le talon épuisé : sans cela, plus rien ne bougerait.
   if (played === 0) {
     const card = chooseDiscard(state, player);
     if (card) {

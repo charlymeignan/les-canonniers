@@ -1,238 +1,412 @@
 // rules.js — Moteur de règles "Les Canonniers".
-// Table de succession transcrite dans docs/regles-implementees.md à partir des pages
-// 12 à 15 du livret et du texte imprimé sur les cartes elles-mêmes (listes noir/rouge).
 //
-// Convention : pour une carte exposée, "own" = cartes que l'équipe qui vient de la
-// poser peut jouer pour poursuivre l'action ; "rival" = cartes que l'équipe adverse
-// peut jouer pour riposter. Le joueur actif doit piocher/poser depuis la liste qui
-// correspond à la relation de son équipe avec l'équipe propriétaire de la carte
-// exposée.
+// SOURCE UNIQUE : docs/regles-reference.md, transcription verbatim du livret.
+// Les tables ci-dessous reproduisent la « SUCCESSION DES CARTES » des pages 13
+// à 16, sans reformulation ni synthèse. Toute divergence entre ce fichier et la
+// transcription est un bug de ce fichier.
+//
+// Le tableau du livret croise DEUX critères, et non un seul :
+//
+//   1. la carte exposée — et, pour passe, interception, touche et coup de
+//      chance, *qui* l'a posée : votre équipe ou vos adversaires ;
+//   2. la position du ballon, vue du joueur qui doit jouer :
+//        « LE BALLON EST DANS LE CAMP ADVERSE : ATTAQUEZ ! »  → clé `attaque`
+//        « LE BALLON EST DANS VOTRE CAMP : RIPOSTEZ ! »        → clé `riposte`
+//
+// Les entrées `split: true` distinguent le poseur ; les autres valent quel que
+// soit le poseur.
 
+/** Parades des tirs imparables : « il n'y a pas d'autres parades possibles ». */
 export const RESTRICTED_DEFENSE = ['arret', 'coup_de_chance'];
 
-// mode: 'indirect' | 'direct' détermine la sous-table de coup_franc.
+/**
+ * Cartes dont l'attaque conclut par « BUT » et dont la défense est fermée aux
+ * deux seules parades. Page 12 : « Penalty et coup franc direct ont les mêmes
+ * pouvoirs que le boulet de canon. »
+ */
+export const UNSTOPPABLE = ['boulet_de_canon', 'penalty'];
+
 export const SUCCESSION = {
+  // ------------------------------------------------------------- page 13 ---
   passe: {
-    own: ['tir_au_but', 'coup_de_chance', 'boulet_de_canon', 'contre_attaque', 'degagement', 'passe'],
-    rival: ['faute', 'touche', 'interception', 'contre_attaque'],
-    campChangeOn: 'rival',
+    split: true,
+    own: {
+      attaque: ['tir_au_but', 'coup_de_chance', 'boulet_de_canon', 'passe'],
+      riposte: ['contre_attaque', 'degagement', 'passe'],
+    },
+    rival: {
+      attaque: ['faute', 'corner', 'interception', 'contre_attaque'],
+      riposte: ['faute', 'touche', 'interception', 'contre_attaque'],
+    },
   },
-  contre_attaque: {
-    own: ['tir_au_but', 'coup_de_chance', 'boulet_de_canon', 'passe'],
-    rival: ['interception', 'touche', 'faute'],
-    campChangeOn: 'own',
-  },
+
   interception: {
-    own: ['tir_au_but', 'coup_de_chance', 'boulet_de_canon', 'passe', 'degagement'],
-    rival: ['faute', 'interception', 'contre_attaque'],
-    campChangeOn: 'none',
+    split: true,
+    own: {
+      attaque: ['tir_au_but', 'coup_de_chance', 'boulet_de_canon', 'passe'],
+      riposte: ['contre_attaque', 'degagement', 'passe'], // « 2 passes de suite »
+    },
+    rival: {
+      attaque: ['faute', 'interception'],
+      riposte: ['faute', 'interception', 'contre_attaque'],
+    },
   },
+
+  // ------------------------------------------------------------- page 14 ---
   degagement: {
-    requiresPrev: ['interception', 'touche'],
-    own: ['tir_au_but', 'coup_de_chance', 'boulet_de_canon', 'passe'],
-    rival: ['contre_attaque', 'interception', 'touche', 'faute'],
-    campChangeOn: 'own',
+    // « doit être précédée d'une INTERCEPTION ou de TOUCHE »
+    requiresPrev: ['interception', 'touche', 'sortie_de_but'],
+    attaque: ['tir_au_but', 'coup_de_chance', 'boulet_de_canon', 'passe'],
+    riposte: ['contre_attaque', 'interception', 'touche', 'faute'],
   },
-  touche: {
-    own: ['tir_au_but', 'coup_de_chance', 'boulet_de_canon', 'passe'],
-    rival: ['degagement', 'contre_attaque', 'interception', 'faute'],
-    campChangeOn: 'rival',
+
+  contre_attaque: {
+    attaque: ['tir_au_but', 'coup_de_chance', 'boulet_de_canon', 'passe'],
+    riposte: ['interception', 'touche', 'faute'],
   },
+
   tir_au_but: {
-    own: ['but', 'boulet_de_canon', 'coup_de_chance'],
-    rival: ['interception', 'contre_attaque', 'arret', 'coup_de_chance', 'sortie_de_but', 'hors_jeu', 'faute'],
-    campChangeOn: 'none',
+    attaque: ['but', 'boulet_de_canon', 'coup_de_chance'],
+    riposte: ['interception', 'contre_attaque', 'arret', 'coup_de_chance',
+              'sortie_de_but', 'hors_jeu', 'faute'],
   },
+
   boulet_de_canon: {
-    own: ['but'],
-    rival: RESTRICTED_DEFENSE,
-    restrictedRival: true,
-    campChangeOn: 'none',
+    attaque: ['but'],
+    riposte: RESTRICTED_DEFENSE,
+    restricted: true,
   },
+
   coup_de_chance: {
-    own: ['but'],
-    rival: RESTRICTED_DEFENSE,
-    campChangeOn: 'none',
-    dualUse: true, // peut aussi être joué comme tir_au_but (attaque) ou arret (défense)
+    // « Un coup de chance peut remplacer un tir au but. Jouez : BUT »
+    // « Le coup de chance a été joué par votre équipe : il peut remplacer un
+    //   arrêt et vaut dégagement. Si le coup de chance a été joué par les
+    //   adversaires, jouez : arrêt, ou un autre coup de chance. »
+    split: true,
+    own: {
+      attaque: ['but'],
+      riposte: ['interception', 'contre_attaque'], // il valait dégagement
+    },
+    rival: {
+      attaque: ['but'],
+      riposte: ['arret', 'coup_de_chance'],
+    },
   },
+
+  // ------------------------------------------------------------- page 15 ---
   but: {
     special: 'goal',
-    rival: ['but_refuse'],
+    attaque: [],                 // « BRAVO ! Ramassez la pile de jeu… »
+    riposte: ['but_refuse'],     // « Votre seule possibilité : Jouer BUT REFUSÉ »
     outOfTurnRival: true,
   },
+
+  arret: {
+    // « 1 arrêt vaut dégagement : le ballon change de camp. »
+    attaque: ['interception', 'contre_attaque'],
+    riposte: [],
+  },
+
+  sortie_de_but: {
+    attaque: [],                 // « Raté ! »
+    riposte: ['degagement'],     // « Vous devez jouer DÉGAGEMENT »
+    forced: 'degagement',
+  },
+
   but_refuse: {
     special: 'cancel-goal',
-    own: ['passe'],
-    campChangeOn: 'reset',
+    attaque: [],                 // « Décision de l'arbitre : tant pis pour vous ! »
+    riposte: ['passe'],          // « jouez passe, et attaquez à votre tour »
   },
-  arret: {
-    own: ['interception', 'contre_attaque'],
-    rival: [],
-    campChangeOn: 'own', // "l'arrêt vaut dégagement"
+
+  touche: {
+    split: true,
+    own: {
+      // « vous reprenez le contrôle du ballon »
+      attaque: ['tir_au_but', 'coup_de_chance', 'boulet_de_canon', 'passe'],
+      riposte: ['degagement', 'contre_attaque', 'passe'],
+    },
+    rival: {
+      attaque: ['interception', 'faute'],
+      riposte: ['contre_attaque', 'interception', 'faute'],
+    },
   },
-  sortie_de_but: {
-    own: ['degagement'],
-    rival: [],
-    forcedOwn: 'degagement',
-    campChangeOn: 'own',
+
+  // ------------------------------------------------------------- page 16 ---
+  corner: {
+    attaque: ['tir_au_but', 'passe'],
+    riposte: ['interception', 'faute', 'contre_attaque'],
   },
+
   hors_jeu: {
-    // Page 15, colonne « le ballon est dans votre camp » : c'est l'équipe qui a
-    // signalé le hors-jeu — donc celle qui défendait — qui tire le coup franc
-    // indirect, et le ballon change de camp à ce moment.
-    own: ['coup_franc'],
-    rival: [],
-    ownFreeKickMode: 'indirect',
-    campChangeOn: 'own',
+    // « ne peut être joué que par les adversaires menacés »
+    attaque: [],                 // « vous a été imposé »
+    riposte: ['coup_franc'],     // « Jouez obligatoirement : Coup franc (indirect) »
+    forced: 'coup_franc',
+    freeKickMode: 'indirect',
   },
+
   faute: {
-    // Une équipe peut commettre deux fautes coup sur coup dans le même tour :
-    // c'est ce qui déclenche la sanction aggravée (coup franc direct ou penalty).
-    // Sans cette suite, la carte « penalty » ne serait jamais jouable.
-    own: ['faute'],
-    // Le coup franc revient à l'équipe qui subit la faute.
-    rival: ['coup_franc'],
-    rivalFreeKickMode: 'indirect', // 'direct' si deux fautes coup sur coup
-    campChangeOn: 'own', // faute commise par l'équipe qui attaquait (page 14)
+    // 1 seule faute → coup franc indirect, des deux côtés du tableau.
+    // 2 fautes coup sur coup → coup franc direct, et penalty côté attaque.
+    attaque: ['coup_franc'],
+    riposte: ['coup_franc'],
+    doubleAttaque: ['coup_franc', 'penalty'],
+    doubleRiposte: ['coup_franc'],
+    chainable: 'faute',          // « 2 fautes coup sur coup »
   },
+
   coup_franc: {
     modes: {
       indirect: {
-        own: ['tir_au_but', 'boulet_de_canon', 'passe'],
-        rival: ['interception', 'contre_attaque', 'touche'],
+        attaque: ['tir_au_but', 'boulet_de_canon', 'passe'],
+        riposte: ['interception', 'contre_attaque', 'touche'],
       },
       direct: {
-        own: ['but'],
-        rival: RESTRICTED_DEFENSE,
-        restrictedRival: true,
+        attaque: ['but'],
+        riposte: RESTRICTED_DEFENSE,
+        restricted: true,
       },
     },
-    campChangeOn: 'none',
   },
+
   penalty: {
-    own: ['but'],
-    rival: RESTRICTED_DEFENSE,
-    restrictedRival: true,
-    campChangeOn: 'none',
-  },
-  corner: {
-    own: ['tir_au_but', 'passe'],
-    rival: ['interception', 'faute', 'contre_attaque'],
-    campChangeOn: 'none',
+    attaque: ['but'],
+    riposte: RESTRICTED_DEFENSE,
+    restricted: true,
   },
 };
 
+// ---------------------------------------------------------------- helpers ---
+
+/** Le ballon est-il dans le camp de l'équipe qui doit jouer ? */
+function ballInOwnCamp(state) {
+  return state.ballCamp === state.activeTeamId;
+}
+
 /**
- * Détermine, pour une carte exposée et une équipe active, la liste des cartes
- * légales à jouer (avant filtrage par la main du joueur).
+ * Colonne du tableau à lire pour l'équipe active.
+ * Ballon dans le camp adverse → on attaque ; ballon dans son camp → on riposte.
+ * Au centre (coup d'envoi, reprise après but), on attaque.
+ */
+function colonne(state) {
+  return ballInOwnCamp(state) ? 'riposte' : 'attaque';
+}
+
+/**
+ * La carte posée rend-elle la main avant que le but puisse être marqué ?
  *
- * @param {object} state - état de partie (voir state.js)
- * @returns {{legalIds: string[], reason: string, freeKickMode?: string}}
+ * Page 10 : « ce sera à son coéquipier vert de marquer le but […] si
+ * l'adversaire blanc **qui doit jouer entre temps** ne s'empare pas du ballon ».
+ * Le tireur ne conclut donc jamais lui-même dans la foulée.
+ *
+ * Le « coup de chance » est l'exception, énoncée deux fois : « Le joueur vert
+ * possède coup de chance et but : **il marque** » (page 10), et « interdiction
+ * de marquer un but tout de suite, **sauf si la carte coup de chance
+ * intervient** » (page 11).
+ */
+export function threatensGoal(cardId, freeKickMode = null) {
+  if (cardId === 'coup_de_chance') return false;
+  if (cardId === 'coup_franc') return freeKickMode === 'direct';
+  return cardId === 'tir_au_but' || UNSTOPPABLE.includes(cardId);
+}
+
+/**
+ * Combien de parades l'équipe qui défend a-t-elle déjà posées sur le tir en
+ * cours ? Page 12 : un boulet de canon « ne peut être stoppé que par deux
+ * arrêts successifs, ou un arrêt suivi d'un coup de chance ».
+ */
+export function paradesPosees(state) {
+  let n = 0;
+  for (let i = state.pileDeJeu.length - 1; i >= 0; i--) {
+    const c = state.pileDeJeu[i];
+    if (RESTRICTED_DEFENSE.includes(c.cardId)) { n += 1; continue; }
+    break;
+  }
+  return n;
+}
+
+/** La dernière carte exposée est-elle un tir imparable encore non stoppé ? */
+function tirImparableEnCours(state) {
+  for (let i = state.pileDeJeu.length - 1; i >= 0; i--) {
+    const c = state.pileDeJeu[i];
+    if (RESTRICTED_DEFENSE.includes(c.cardId)) continue;
+    if (UNSTOPPABLE.includes(c.cardId)) return c;
+    if (c.cardId === 'coup_franc' && state.freeKickMode === 'direct') return c;
+    return null;
+  }
+  return null;
+}
+
+// ------------------------------------------------------------------ table ---
+
+/**
+ * Cartes légales pour l'équipe active, d'après la table des pages 13 à 16.
+ *
+ * @param {object} state - doit porter pileDeJeu, activeTeamId, ballCamp,
+ *   freeKickMode, consecutiveFautes, pendingGoal.
+ * @returns {{legalIds: string[], reason: string, colonne: string,
+ *            restricted?: boolean, freeKickMode?: string, forced?: string}}
  */
 export function getLegalCardIds(state) {
   const top = state.pileDeJeu[state.pileDeJeu.length - 1];
-  if (!top) {
-    // Aucune carte posée encore : seul un coup d'envoi "passe" est valide.
-    return { legalIds: ['passe'], reason: 'coup-envoi' };
-  }
+  const col = colonne(state);
 
-  const topDef = SUCCESSION[top.cardId];
-  const isOwnTeam = top.teamId === state.activeTeamId;
+  // Coup d'envoi : « il doit commencer la pile de jeu par une carte passe ».
+  if (!top) return { legalIds: ['passe'], reason: 'coup-envoi', colonne: col };
 
-  // Fenêtre spéciale : un "but" vient d'être posé, seule la carte but_refuse
-  // (jouable hors tour par l'équipe qui vient d'encaisser) est valide.
+  // Fenêtre « but refusé » : seule riposte possible au but qui vient d'être posé.
   if (top.cardId === 'but' && state.pendingGoal) {
-    return { legalIds: ['but_refuse'], reason: 'fenetre-but-refuse' };
+    return { legalIds: ['but_refuse'], reason: 'fenetre-but-refuse', colonne: 'riposte' };
   }
 
-  if (topDef?.special === 'cancel-goal') {
-    // Après but_refuse, l'équipe qui l'a joué relance comme à un coup d'envoi.
-    return { legalIds: ['passe'], reason: 'relance-but-refuse' };
+  const def = SUCCESSION[top.cardId];
+  if (!def) return { legalIds: [], reason: 'inconnu', colonne: col };
+
+  const parLeurEquipe = top.teamId === state.activeTeamId;
+
+  // Un tir imparable déjà entamé : tant que les deux parades ne sont pas
+  // posées, la défense peut encore parer et l'attaque peut encore conclure.
+  const imparable = tirImparableEnCours(state);
+  if (imparable) {
+    const parades = paradesPosees(state);
+    if (parades >= 2) {
+      // « 2 arrêts coup sur coup, ou 1 arrêt et 1 coup de chance » : le tir est
+      // stoppé, l'arrêt vaut dégagement et la main revient au camp qui a paré.
+      const arret = SUCCESSION.arret;
+      const pareParMoi = state.pileDeJeu[state.pileDeJeu.length - 1].teamId === state.activeTeamId;
+      return {
+        legalIds: pareParMoi ? arret.attaque : arret.riposte,
+        reason: 'tir-stoppe', colonne: col,
+      };
+    }
+    const attaquant = imparable.teamId === state.activeTeamId;
+    return attaquant
+      ? { legalIds: ['but'], reason: 'attaque', colonne: col, restricted: false }
+      : { legalIds: [...RESTRICTED_DEFENSE], reason: 'parade', colonne: col, restricted: true };
   }
 
-  if (!topDef) return { legalIds: [], reason: 'inconnu' };
-
-  // Coup franc : le mode (indirect/direct) est fixé par ce qui précède
-  // (hors-jeu ou faute simple => indirect ; 2 fautes coup sur coup => direct).
+  // Coup franc : son mode est fixé par la sanction qui l'a provoqué.
   if (top.cardId === 'coup_franc') {
     const mode = state.freeKickMode || 'indirect';
-    const branch = topDef.modes[mode];
-    const ids = isOwnTeam ? branch.own : branch.rival;
+    const branche = def.modes[mode];
     return {
-      legalIds: [...ids],
-      reason: isOwnTeam ? 'own' : 'rival',
-      restricted: !!branch.restrictedRival && !isOwnTeam,
+      legalIds: [...(parLeurEquipe ? branche.attaque : branche.riposte)],
+      reason: parLeurEquipe ? 'attaque' : 'riposte',
+      colonne: col,
+      restricted: !!branche.restricted && !parLeurEquipe,
       freeKickMode: mode,
     };
   }
 
-  // Faute : l'équipe fautive peut en commettre une seconde coup sur coup, ce qui
-  // aggrave la sanction. L'équipe lésée tire un coup franc indirect après une
-  // faute simple, un coup franc direct ou un penalty après une double faute.
+  // Faute : la sanction revient toujours à l'équipe lésée, et s'aggrave si deux
+  // fautes ont été commises coup sur coup.
   if (top.cardId === 'faute') {
-    const doubleFaute = state.consecutiveFautes >= 2;
-    if (isOwnTeam) {
-      // Pas de troisième faute d'affilée : la sanction est déjà maximale.
-      return doubleFaute
-        ? { legalIds: [], reason: 'own-none' }
-        : { legalIds: ['faute'], reason: 'own' };
+    const doublee = state.consecutiveFautes >= 2;
+    if (parLeurEquipe) {
+      // L'équipe fautive peut en commettre une seconde, mais pas une troisième.
+      return doublee
+        ? { legalIds: [], reason: 'rien', colonne: col }
+        : { legalIds: ['faute'], reason: 'seconde-faute', colonne: col };
     }
-    const ids = doubleFaute ? ['coup_franc', 'penalty'] : ['coup_franc'];
-    return { legalIds: [...ids], reason: 'rival', freeKickMode: doubleFaute ? 'direct' : 'indirect' };
+    const ids = doublee
+      ? (col === 'attaque' ? def.doubleAttaque : def.doubleRiposte)
+      : [def[col][0]];
+    return {
+      legalIds: [...ids], reason: 'sanction', colonne: col,
+      freeKickMode: doublee ? 'direct' : 'indirect',
+    };
   }
 
-  // Hors-jeu : le coup franc indirect revient à l'équipe qui l'a signalé.
-  if (top.cardId === 'hors_jeu') {
-    if (!isOwnTeam) return { legalIds: [], reason: 'rival-none' };
-    return { legalIds: ['coup_franc'], reason: 'own', freeKickMode: 'indirect' };
-  }
+  // Cartes dont la table distingue qui les a posées.
+  const branche = def.split ? (parLeurEquipe ? def.own : def.rival) : def;
+  let ids = [...(branche[col] || [])];
 
-  const rawIds = isOwnTeam ? (topDef.own || []) : (topDef.rival || []);
-  const restricted = !isOwnTeam && !!topDef.restrictedRival;
+  // Note : deux mentions du livret sont plus restrictives que les cellules du
+  // tableau qui les contredisent — « Corner : ne peut être joué que si
+  // l'adversaire possède le ballon » alors que la cellule passe/adverse/attaquez
+  // l'offre, et « Dégagement doit être précédée d'une INTERCEPTION ou de TOUCHE »
+  // alors que plusieurs cellules l'offrent après une passe. Ce sont les
+  // cellules qui font foi : elles énumèrent les coups situation par situation,
+  // là où les mentions en tête de ligne décrivent le cas général. Voir
+  // docs/regles-implementees.md.
 
-  // "Corner" (page 13) : « ne peut être joué que si l'adversaire possède le
-  // ballon », c'est-à-dire chaque fois que l'équipe active doit riposter face à
-  // l'équipe qui a l'initiative — quelle que soit la carte exposée précisément.
-  // Exception : boulet de canon / coup franc direct / penalty ont une défense
-  // fermée (« il n'y a pas d'autres parades possibles ») — corner n'y coupe pas.
-  const ids = !isOwnTeam && !restricted ? [...rawIds, 'corner'] : rawIds;
-
-  return { legalIds: [...ids], reason: isOwnTeam ? 'own' : 'rival', restricted };
+  return {
+    legalIds: ids,
+    reason: parLeurEquipe ? 'attaque' : 'riposte',
+    colonne: col,
+    forced: def.forced,
+    freeKickMode: def.freeKickMode,
+  };
 }
 
-/** Vérifie qu'une carte donnée peut être posée dans l'état courant par l'équipe active. */
+/** Une carte donnée est-elle jouable par l'équipe active ? */
 export function isLegalPlay(state, cardId) {
-  const { legalIds } = getLegalCardIds(state);
-  if (cardId === 'coup_de_chance') {
-    // Usage double : légal partout où tir_au_but (attaque) ou arret (défense) le sont.
-    if (legalIds.includes('coup_de_chance')) return true;
-    if (legalIds.includes('tir_au_but') || legalIds.includes('arret')) return true;
-    return false;
-  }
-  return legalIds.includes(cardId);
+  return getLegalCardIds(state).legalIds.includes(cardId);
 }
 
-/** Résout les effets d'une carte jouée : changement de camp, score, etc. */
+// ------------------------------------------------------- ballon (page 12) ---
+
+/**
+ * Le ballon change-t-il de camp ? Transcription directe de « Mouvements du
+ * ballon », page 12, complétée par les mentions « le ballon change de camp »
+ * portées dans le tableau des pages 13 à 16.
+ *
+ * @param {object} state - état AVANT la pose (pileDeJeu sans la carte jouée)
+ * @param {string} cardId - carte que l'on pose
+ * @param {string} teamId - équipe qui la pose
+ */
+export function changesCamp(state, cardId, teamId) {
+  const pile = state.pileDeJeu;
+  const top = pile[pile.length - 1];
+  const precedent = (n) => pile[pile.length - n];
+
+  // Coup d'envoi et reprise après but : « le ballon passe dans le camp adverse ».
+  if (!top && cardId === 'passe') return true;
+  if (top?.cardId === 'but_refuse' && cardId === 'passe') return true;
+
+  // 1 - « Si une équipe expose la carte contre-attaque. »
+  if (cardId === 'contre_attaque') return true;
+
+  // « 1 arrêt vaut dégagement : le ballon change de camp. »
+  if (cardId === 'arret') return true;
+
+  // « Sortie de but : vous devez jouer DÉGAGEMENT ; le ballon change de camp. »
+  // « Dégagement : le ballon change de camp. »
+  if (cardId === 'degagement') return true;
+
+  // 2 - « interception, suivie de dégagement, boulet de canon, ou deux passes
+  //      successives » — le dégagement est déjà couvert ci-dessus.
+  if (top?.cardId === 'interception' && cardId === 'boulet_de_canon') return true;
+  // top est precedent(1) ; la carte qui le précède est donc precedent(2).
+  if (cardId === 'passe' && top?.cardId === 'passe' && precedent(2)?.cardId === 'interception') {
+    return true;
+  }
+
+  // 3 - « Après une touche, suivie de passe, ou dégagement, ou contre-attaque. »
+  if (top?.cardId === 'touche' && ['passe', 'contre_attaque'].includes(cardId)) return true;
+
+  // 4 - « Si l'équipe menacée (le ballon étant alors dans son propre camp) joue
+  //      faute ou double faute, sanctionnée par coup franc. »
+  //   Le changement intervient à la pose du coup franc ou du penalty, quand la
+  //   faute avait été commise par l'équipe qui défendait dans son propre camp.
+  if (['coup_franc', 'penalty'].includes(cardId) && top?.cardId === 'faute') {
+    return state.ballCamp === top.teamId;
+  }
+
+  // « Hors-jeu : jouez obligatoirement coup franc indirect. Le ballon change de
+  //   camp. »
+  if (cardId === 'coup_franc' && top?.cardId === 'hors_jeu') return true;
+
+  return false;
+}
+
+/** Effets de la pose d'une carte : score, annulation, mouvement du ballon. */
 export function resolvePlay(state, cardId, teamId) {
-  const effects = { changesCamp: false, scored: null, cancelledGoal: false };
-  const def = SUCCESSION[cardId];
-
-  if (cardId === 'but') {
-    effects.scored = teamId;
-    return effects;
-  }
-  if (cardId === 'but_refuse') {
-    effects.cancelledGoal = true;
-    return effects;
-  }
-  if (!def) return effects;
-
-  const isOwn = !state.pileDeJeu.length ? true : state.pileDeJeu[state.pileDeJeu.length - 1].teamId === teamId;
-  if (def.campChangeOn === 'own' && isOwn) effects.changesCamp = true;
-  if (def.campChangeOn === 'rival' && !isOwn) effects.changesCamp = true;
-  if (def.campChangeOn === 'reset') effects.resetCenter = true;
-  if (cardId === 'contre_attaque') effects.changesCamp = true;
-  if (cardId === 'passe' && !isOwn) effects.changesCamp = true;
-
-  return effects;
+  return {
+    scored: cardId === 'but' ? teamId : null,
+    cancelledGoal: cardId === 'but_refuse',
+    changesCamp: changesCamp(state, cardId, teamId),
+    resetCenter: cardId === 'but_refuse',
+  };
 }

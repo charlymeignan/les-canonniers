@@ -1,141 +1,114 @@
-# Table de succession implémentée
+# Du livret au moteur
 
-Ce document est la source de vérité utilisée par le moteur de règles (`js/rules.js`).
-Il a été reconstruit en croisant trois sources du kit :
+`docs/regles-reference.md` est la **transcription verbatim** du livret : c'est la
+source unique. `js/rules.js` en est la traduction en code, table par table,
+cellule par cellule. Ce document ne recense que les points où le passage de l'une
+à l'autre a demandé une décision.
 
-1. Le tableau **« Succession des cartes »**, pages 13 à 15 du livret (photos des pages).
-2. Le texte imprimé sur **chaque carte** elle-même : en noir la liste des cartes que
-   *la même équipe* peut jouer pour poursuivre son action, en rouge la liste des cartes
-   que *l'équipe adverse* peut jouer pour riposter (règle explicite donnée en page 10 :
-   « noir : la série de cartes parmi lesquelles les équipiers peuvent choisir pour
-   continuer l'action entreprise » / « rouge : la série de cartes parmi lesquelles les
-   adversaires peuvent choisir pour gêner l'action »).
-3. Les pages 4-5 (petit lexique), 6-9 (composition/but du jeu/préparation) et 12
-   (cartes spéciales, mouvements du ballon).
+> Règle de travail : en cas de désaccord entre ce fichier, le code et la
+> transcription, **c'est la transcription qui a raison**. Les deux autres se
+> corrigent.
 
-Les deux sources (tableau pages 13-15 et texte imprimé sur les cartes) se recoupent à
-95 % ; quand elles diffèrent légèrement, le texte imprimé sur la carte a été retenu
-car il est plus lisible sur les photos macro et car c'est la référence que le joueur a
-sous les yeux pendant la partie.
+## Comment la table est encodée
 
-## Principe général du moteur
+Le tableau des pages 13 à 16 croise **deux** critères :
 
-Pour une carte exposée (le dessus de la pile de jeu) appartenant à une équipe
-« propriétaire » (celle qui vient de la poser) :
+1. la carte exposée — et, pour `passe`, `interception`, `touche` et
+   `coup de chance`, *qui* l'a posée : votre équipe ou vos adversaires ;
+2. la position du ballon, vue du joueur qui doit jouer :
+   « LE BALLON EST DANS LE CAMP ADVERSE : ATTAQUEZ ! » → clé `attaque` ;
+   « LE BALLON EST DANS VOTRE CAMP : RIPOSTEZ ! » → clé `riposte`.
 
-- **`own`** : cartes que la même équipe peut poser ensuite pour poursuivre l'action.
-- **`rival`** : cartes que l'équipe adverse peut poser pour riposter / intercepter /
-  s'emparer du ballon.
+`SUCCESSION` reproduit exactement ces deux axes. Les entrées `split: true`
+distinguent le poseur ; les autres valent quel que soit le poseur.
 
-Le joueur actif (à tour de rôle, pass-and-play) doit poser une carte de la liste qui
-correspond à son équipe (`own` si son équipe est propriétaire de la carte exposée,
-`rival` sinon). S'il n'a aucune carte valide en main, il pioche.
+## Les quatre points arbitrés
 
-## Table
+### 1. Les cellules priment sur les mentions en tête de ligne
 
-| Carte exposée | own (même équipe continue) | rival (équipe adverse riposte) | Ballon change de camp | Notes |
-|---|---|---|---|---|
-| **passe** | tir_au_but, coup_de_chance, boulet_de_canon, contre_attaque, degagement, passe | faute, touche, interception, contre_attaque | seulement si le rival répond | Carte obligatoire au coup d'envoi et après un but. |
-| **contre_attaque** | tir_au_but, coup_de_chance, boulet_de_canon, passe | interception, touche, faute | oui, immédiatement | S'emparer du ballon *sans* interception préalable. |
-| **interception** | tir_au_but, coup_de_chance, boulet_de_canon, passe, degagement | faute, interception, contre_attaque | non (le ballon reste où l'interception l'a saisi) | |
-| **degagement** | tir_au_but, coup_de_chance, boulet_de_canon, passe | contre_attaque, interception, touche, faute | oui, immédiatement | Doit être précédée d'une interception ou d'une touche. |
-| **touche** | tir_au_but, coup_de_chance, boulet_de_canon, passe | degagement, contre_attaque, interception, faute | oui si le rival riposte | Rentrée en touche : l'équipe qui pose la carte reprend le ballon. |
-| **tir_au_but** | but, boulet_de_canon, coup_de_chance | interception, contre_attaque, arret, coup_de_chance, sortie_de_but, hors_jeu, faute | non | `boulet_de_canon`/`coup_de_chance` en `own` « renforcent » le tir. |
-| **boulet_de_canon** | but | arret, coup_de_chance | non | Défense restreinte : arrêt+arrêt ou arrêt+coup de chance, obligatoirement 2 cartes consécutives. Aucune autre parade. |
-| **coup_de_chance** | but | arret, coup_de_chance | non | Carte double usage : remplace un `tir_au_but` en attaque, ou un `arret` en défense (compte alors comme `degagement`). |
-| **but** | *(spécial : ramasse pile, pioche au talon, complète à 8, rejoue immédiatement une carte `passe`)* | but_refuse | oui (recentrage puis passe vers le camp adverse) | Score +1 pour l'équipe qui marque, sauf `but_refuse`. |
-| **but_refuse** | passe *(l'équipe qui a annulé le but relance comme à un coup d'envoi)* | — | ballon remis au centre | Jouable hors tour, uniquement dans l'instant qui suit un `but`. |
-| **arret** | interception, contre_attaque | — | oui (l'arrêt vaut dégagement) | Le gardien capte : son équipe relance. |
-| **sortie_de_but** | degagement *(obligatoire)* | — | oui | « Raté ! » |
-| **hors_jeu** | coup_franc (mode indirect) | — | oui | Ne peut être jouée que par l'équipe menacée par l'attaque. Le coup franc revient à **celle qui a signalé le hors-jeu** (page 15, colonne « le ballon est dans votre camp »), pas à celle qui était en position illicite. |
-| **faute** (1ʳᵉ) | faute *(seconde faute possible)* | coup_franc (mode indirect) | si commise par l'équipe qui attaquait | Coup franc indirect obligatoire pour l'équipe lésée. |
-| **faute** (2ᵉ coup sur coup) | — *(pas de 3ᵉ)* | coup_franc (mode direct) ou penalty *(choix de l'équipe lésée)* | idem | Faute grave répétée. |
-| **coup_franc** (indirect) | tir_au_but, boulet_de_canon, passe | interception, contre_attaque, touche | non | Le botteur ne peut pas marquer directement. |
-| **coup_franc** (direct) | but | arret, coup_de_chance | non | Mêmes pouvoirs qu'un boulet de canon. |
-| **penalty** | but | arret, coup_de_chance | non | Défense restreinte identique au boulet de canon / coup franc direct. |
-| **corner** | tir_au_but, passe | interception, faute, contre_attaque | non | « Ne peut être joué que si l'adversaire possède le ballon » : implémenté comme une option de riposte toujours disponible pour l'équipe qui ne possède pas l'initiative, quelle que soit la carte exposée. |
+Deux mentions du livret sont plus restrictives que des cellules qui les
+contredisent :
 
-## Deux points de lecture qui ont demandé un arbitrage
+- *« Corner : ne peut être joué que si l'adversaire possède le ballon »*, alors
+  que la cellule **passe / posée par vos adversaires / attaquez** l'offre ;
+- *« Dégagement doit être précédée d'une INTERCEPTION ou de TOUCHE »*, alors que
+  plusieurs cellules l'offrent après une passe.
 
-### Le tableau des pages 13-15 n'est pas organisé comme les cartes
+**Retenu :** les cellules font foi. Elles énumèrent les coups situation par
+situation ; les mentions en tête de ligne décrivent le cas général et l'esprit de
+la carte. Appliquer les deux rendrait certaines cellules imprimées inatteignables.
 
-Le tableau du livret classe les suites selon **la position du ballon** (« le ballon
-est dans le camp adverse : attaquez ! » / « le ballon est dans votre camp :
-ripostez ! »), tandis que le texte imprimé sur chaque carte les classe selon
-**qui joue** (noir = les équipiers, rouge = les adversaires, convention donnée en
-page 10). Les deux découpages coïncident dans la très grande majorité des cas,
-mais pas partout.
+### 2. Une carte qui menace le but rend la main
 
-Le moteur suit la convention **noir/rouge des cartes**, parce que c'est celle que
-le joueur a physiquement sous les yeux pendant la partie. Là où le tableau est
-plus précis que la carte — notamment pour `hors_jeu` — c'est le tableau qui
-tranche, et le choix est signalé dans la colonne « Notes » ci-dessus.
+Page 10 : *« ce sera à son coéquipier vert de marquer le but […] si l'adversaire
+blanc **qui doit jouer entre temps** ne s'empare pas du ballon »*, et pour le
+boulet de canon *« il la pose sur la pile de jeu, et **son équipier marquera** »*.
 
-### La double faute doit être possible
+**Retenu :** poser `tir_au_but`, `boulet_de_canon`, `penalty` ou un
+`coup_franc` direct **termine le tour**. La défense a toujours sa fenêtre.
 
-Le livret sanctionne « 2 fautes coup sur coup » par un coup franc direct ou un
-penalty. Pour que ce cas existe, une équipe doit pouvoir poser **deux cartes
-`faute` d'affilée** — ce qu'elle peut faire puisqu'un joueur pose de une à trois
-cartes consécutives à son tour. La table donne donc `faute → faute` en suite
-« own ». Sans cette suite, les cartes `penalty` et `coup franc direct` seraient
-strictement injouables : le banc d'essai (`test/simulation.mjs`) l'a détecté en
-signalant que `penalty` n'était jamais posé sur 300 parties.
+**L'exception explicite est le coup de chance**, énoncée deux fois : *« Le joueur
+vert possède coup de chance et but : **il marque** »* (page 10) et *« interdiction
+de marquer un but tout de suite, **sauf si la carte coup de chance intervient** »*
+(page 11). Il ne rend donc pas la main.
 
-## Blocage de la pile : règle de déblocage ajoutée
+### 3. Une seule carte se joue hors tour
 
-Certaines cartes n'ouvrent aucune suite pour l'un des deux camps (`arret` et
-`sortie_de_but` ne laissent rien à l'adversaire, `hors_jeu` rien à l'équipe prise
-en défaut). Si, en plus, le camp concerné n'a aucune des cartes attendues en main,
-plus personne ne peut enchaîner sur la carte exposée.
+Page 12 : *« Le joueur qui possède la carte "but refusé", **même si ce n'est pas
+son tour de jouer**, doit l'annoncer à voix haute et l'abattre au moment précis
+où l'adversaire marque un but. »*
 
-Le livret ne décrit ce cas que pour le coup d'envoi (page 10 : on se défausse de
-proche en proche jusqu'à ce qu'un joueur puisse jouer « passe »). Le moteur étend
-la même logique à toute la partie : **quand tous les joueurs ont passé leur tour
-à la suite, la pile de jeu part à la défausse, le ballon revient au centre et la
-partie repart sur un coup d'envoi.** C'est une extrapolation assumée, sans
-laquelle une partie sur deux se figerait.
+Cette précision n'est donnée que pour `but refusé`. Partout ailleurs le livret
+décrit une rotation normale : *« l'adversaire qui doit jouer entre temps »*,
+*« à moins que l'adversaire n'ait déposé auparavant 2 cartes arrêt »*.
 
-## Fin de la partie
+**Retenu :** `but refusé` est la seule carte jouable hors tour. La « riposte »
+des colonnes du tableau est ce qu'on joue **quand son tour vient**, face à la
+carte exposée par l'adversaire.
 
-« Le jeu continue jusqu'à épuisement des cartes en main » (page 11). La partie
-s'achève donc quand le talon est vide et que plus aucun joueur n'a de carte ;
-l'équipe qui a ramassé le plus de piles — c'est-à-dire marqué le plus de buts —
-l'emporte.
+### 4. Déblocage de la pile — extrapolation assumée
 
-## Mouvements du ballon (page 12)
+Certaines cellules sont vides d'un côté (`arrêt` et `sortie de but` ne laissent
+rien à l'adversaire, `hors-jeu` rien à l'équipe sanctionnée). Si le camp concerné
+n'a pas non plus les cartes attendues en main, plus personne ne peut enchaîner.
 
-Le ballon change de camp dans les cas suivants, listés explicitement page 12 et
-recoupés avec le tableau ci-dessus :
+Le livret ne traite ce cas que pour le coup d'envoi (page 10 : on se défausse de
+proche en proche jusqu'à ce qu'un joueur puisse jouer « passe »).
 
-- après une **contre-attaque** (immédiat) ;
-- après un **dégagement** (immédiat, car il doit suivre une interception ou une touche) ;
-- après un **hors-jeu** (le coup franc indirect qui suit est joué dans l'autre sens) ;
-- après une **faute** simple ou double commise par l'équipe qui attaquait ;
-- après une **touche** posée par l'adversaire, si celui-ci rejoue ensuite « passe » ;
-- au **coup d'envoi** et après chaque **but** (la carte `passe` obligatoire envoie le
-  ballon dans le camp adverse).
+**Retenu :** la même logique est étendue à toute la partie. Quand tous les
+joueurs ont passé à la suite, la pile part à la défausse, le ballon revient au
+centre et la partie repart sur un coup d'envoi. **C'est le seul ajout au livret.**
 
-## Cartes spéciales à défense restreinte
+## La carte vierge
 
-`boulet_de_canon`, `coup_franc` (mode direct) et `penalty` partagent la même défense
-très étroite décrite en page 12 : uniquement deux `arret` consécutifs, ou un `arret`
-suivi d'un `coup_de_chance`. Aucune autre carte ne peut interrompre ces trois-là.
+La boîte contenait une 109ᵉ carte vierge, qu'aucune page du livret ne décrit.
+Traitée comme une carte de remplacement, sans fonction de jeu : elle n'est pas
+distribuée. Le deck jouable compte **108 cartes**.
 
-## Carte vierge
+## Ce qui est vérifié, et comment
 
-La boîte documentée contenait une 109ᵉ carte vierge, qu'aucune page du livret ne
-décrit. **Elle n'est pas une carte de jeu** : c'est une carte de remplacement,
-comme il s'en glissait couramment dans les jeux de cartes français de l'époque.
-Elle n'est donc pas distribuée, et le deck jouable compte **108 cartes**.
+- `test/rules.test.mjs` — 46 tests, chacun citant la cellule de la transcription
+  qu'il vérifie. Un échec signifie que le moteur a tort, pas le livret.
+- `test/simulation.mjs` — parties ordinateur contre ordinateur. À chaque tour :
+  conservation et unicité des 108 cartes, taille des mains, validité du camp du
+  ballon, progression vers la fin. Signale toute carte **jamais posée**, ce qui
+  trahit une branche morte de la table.
+- `test/ui.test.mjs` — parcours réels en navigateur, dont une partie complète.
 
-## Comment ces règles sont vérifiées
+## Bugs que ces vérifications ont attrapés
 
-- `test/rules.test.mjs` — 27 tests unitaires sur le deck, chaque branche de la
-  table de succession, et des séquences de partie complètes.
-- `test/simulation.mjs` — parties ordinateur contre ordinateur en série. À chaque
-  tour, le banc d’essai vérifie que les 108 cartes sont toutes présentes et
-  uniques, qu'aucune main ne dépasse la taille autorisée, que le camp du ballon
-  reste valide et que la partie progresse vers sa fin. Il signale aussi toute
-  carte du deck **jamais posée**, ce qui trahit une branche morte de la table.
-- `test/ui.test.mjs` — parcours réels dans un navigateur, y compris une partie
-  ordinateur contre ordinateur menée à son terme.
+- **`penalty` injouable.** La table interdisait à une faute d'en suivre une
+  autre ; la « double faute » du livret ne pouvait donc jamais se produire, et
+  avec elle ni penalty ni coup franc direct. Détecté par la simulation, qui
+  signalait la carte comme jamais posée.
+- **Coup franc direct dégradé en indirect.** Poser la carte réinitialisait son
+  mode, rendant le but impossible à marquer au coup suivant.
+- **Défense impossible.** L'attaquant enchaînait tir puis but dans le même tour ;
+  la défense n'avait jamais la main. Signalé en jouant, corrigé par le point 2.
+- **Blocage complet.** `endTurn()` sortait sans rien faire quand la main comptait
+  neuf cartes : le bouton « Fin du tour » restait sans effet et la partie était
+  définitivement figée. La défausse prévue page 9 n'était pas branchée sur
+  l'interface.
+- **Moteur bâti sur un résumé.** Les premières versions s'appuyaient sur une
+  synthèse des règles et non sur le texte, et manquaient l'axe « position du
+  ballon » du tableau. Le moteur a été réécrit sur la transcription.
