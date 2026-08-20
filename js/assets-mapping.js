@@ -327,13 +327,16 @@ function motionLines(x, y, len = 26, count = 3, spread = 5) {
 let artManifest = {};
 
 export async function loadCardArt(base = 'assets/cards/') {
+  const resolve = (obj) => Object.fromEntries(
+    Object.entries(obj ?? {}).map(([id, file]) => [id, `${base}${file}`])
+  );
   try {
     const res = await fetch(`${base}manifest.json`, { cache: 'no-cache' });
     if (!res.ok) return {};
     const data = await res.json();
-    artManifest = Object.fromEntries(
-      Object.entries(data.cards ?? {}).map(([id, file]) => [id, `${base}${file}`])
-    );
+    // Cartes et visuels hors cartes partagent le même espace de noms : les
+    // identifiants ne se chevauchent pas (voir js/art-slots.js).
+    artManifest = { ...resolve(data.cards), ...resolve(data.art) };
   } catch {
     // Pas de manifeste : on reste intégralement en SVG, ce qui est le cas
     // nominal tant qu'aucune illustration n'a été déposée.
@@ -342,9 +345,9 @@ export async function loadCardArt(base = 'assets/cards/') {
   return artManifest;
 }
 
-/** Chemin de l'illustration déposée pour une carte, ou null. */
-export function cardArtUrl(cardId) {
-  return artManifest[cardId] ?? null;
+/** Chemin de l'illustration déposée pour une carte ou un visuel, ou null. */
+export function cardArtUrl(id) {
+  return artManifest[id] ?? null;
 }
 
 // ---------------------------------------------------------- API illustrations --

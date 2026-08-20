@@ -1,0 +1,60 @@
+# Publie la webapp sur GitHub Pages.
+#
+# Le jeu est un site statique sans étape de compilation : on se contente de
+# rassembler les fichiers que le navigateur charge réellement. La documentation,
+# les tests et surtout le dossier assets/user-files/ (scan du livret et photos
+# du matériel d'origine) restent dans le dépôt mais ne sont pas mis en ligne.
+
+name: Pages
+
+on:
+  push:
+    branches:
+      - main
+      - claude/canonniers-webapp-mobile-hyy4lb
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Un seul déploiement à la fois ; on laisse finir celui qui est en cours.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Vérifier le moteur de règles avant publication
+        run: |
+          node test/rules.test.mjs
+          node test/simulation.mjs 100
+
+      - name: Rassembler le site
+        run: |
+          mkdir -p _site
+          cp index.html _site/
+          cp -r css js _site/
+          mkdir -p _site/assets
+          cp -r assets/cards _site/assets/
+          # Empêche GitHub Pages de faire passer le site par Jekyll.
+          touch _site/.nojekyll
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

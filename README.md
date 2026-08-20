@@ -110,6 +110,25 @@ dans `assets/cards/` (par exemple `boulet_de_canon.webp`), lancer
 jamais casser le reste. Le format attendu et un prompt de génération calibré sur
 les photos du kit sont dans [`docs/illustrations.md`](docs/illustrations.md).
 
+## Mise en ligne
+
+Le jeu est un site statique : aucune compilation, aucun serveur applicatif.
+
+Un workflow GitHub Pages est fourni (`.github/workflows/pages.yml`). Il lance les
+tests du moteur, puis publie uniquement ce que le navigateur charge :
+`index.html`, `css/`, `js/` et `assets/cards/`. **Le dossier
+`assets/user-files/` — scan du livret et photos du matériel — n'est pas mis en
+ligne** : c'est de la documentation de travail, pas du contenu à rediffuser.
+
+Pour l'activer : *Settings → Pages → Source : **GitHub Actions***. Le
+déploiement se déclenche ensuite à chaque push. GitHub Pages est gratuit sur les
+dépôts publics ; sur un dépôt privé il faut un compte payant.
+
+Tout autre hébergement statique convient aussi — Cloudflare Pages, Netlify,
+Vercel : connecter le dépôt, laisser la commande de build vide, répertoire de
+publication à la racine. Les chemins du projet sont tous relatifs, le site
+fonctionne donc aussi bien à la racine d'un domaine que dans un sous-répertoire.
+
 ## Points de règle arbitrés
 
 Trois points ont demandé une interprétation, tous documentés en détail dans

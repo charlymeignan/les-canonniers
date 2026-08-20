@@ -540,9 +540,19 @@ function startGame() {
 function renderCover() {
   const fig = document.createElement('div');
   fig.className = 'cover-figure';
-  fig.innerHTML = coverStriker();
+  const art = cardArtUrl('cover');
+  if (art) {
+    fig.classList.add('cover-figure--art');
+    fig.innerHTML = `<img src="${art}" alt="">`;
+  } else {
+    fig.innerHTML = coverStriker();
+  }
   $('.cover').prepend(fig);
   $('#cover-ball').innerHTML = ballSvg(40);
+
+  // Motif du dos de carte, s'il a été fourni sous forme d'image.
+  const back = cardArtUrl('dos-de-carte');
+  if (back) document.documentElement.style.setProperty('--card-back-art', `url("${back}")`);
 }
 
 export async function bindUI() {

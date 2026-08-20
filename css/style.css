@@ -1091,3 +1091,21 @@ button { font: inherit; color: inherit; border: none; background: none; cursor: 
   object-position: center bottom;
   display: block;
 }
+
+/* Le tireur de la couverture, quand il est fourni sous forme d'image. */
+.cover-figure--art img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  object-position: left bottom;
+  display: block;
+}
+
+/* Dos de carte fourni sous forme d'image : il remplace le motif tramé en CSS. */
+:root { --card-back-art: none; }
+.card-back {
+  background-image: var(--card-back-art),
+    radial-gradient(circle at 1.2px 1.2px, rgba(247, 244, 234, 0.5) 1.2px, transparent 0);
+  background-size: cover, 5px 5px;
+  background-position: center, 0 0;
+}

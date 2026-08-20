@@ -18,6 +18,15 @@ n'est qu'un **repli** : si un fichier image porte le nom de la carte dans
 On peut donc y aller **carte par carte** : le jeu reste cohérent et jouable à
 chaque étape, il n'y a jamais de moment où l'application est cassée.
 
+### Visuels hors cartes
+
+Deux emplacements ne correspondent pas à une carte (voir `js/art-slots.js`) :
+
+- `cover` — le tireur de la couverture de la boîte, sur l'écran d'accueil.
+  Portrait ~4:5, fond transparent, personnage calé en bas à gauche.
+- `dos-de-carte` — le motif bleu au dos des cartes. Portrait 5:7, **sans**
+  transparence, motif à fond perdu.
+
 ### Identifiants des 17 cartes
 
 `passe` · `contre_attaque` · `interception` · `degagement` · `touche` ·
