@@ -124,6 +124,13 @@ def image_ajustee(pdf, chemin, x, y, largeur_max, hauteur_max):
 
 
 def construire(sortie):
+    if not os.path.isdir(os.path.join(KIT, 'refs-cartes')):
+        sys.exit(
+            "Les vignettes de cartes sont absentes de docs/kit-illustrations/refs-cartes/.\n"
+            "Lancer d'abord : python3 tools/build-kit.py\n"
+            "(qui a lui-même besoin des photos d'origine — voir "
+            "assets/user-files/README.md).")
+
     pdf = Doc(orientation='P', unit='mm', format='A4')
     pdf.set_auto_page_break(True, margin=16)
     pdf.add_font('DejaVu', '', f'{FONTS}/DejaVuSans.ttf')

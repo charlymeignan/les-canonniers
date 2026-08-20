@@ -3,3 +3,18 @@ package-lock.json
 /shots/
 *.log
 _site/
+
+# Sources d'origine : scan du livret et photos du matériel. Elles restent
+# nécessaires en local pour régénérer le kit d'illustrations, mais ne sont pas
+# versionnées — le dépôt n'a pas à rediffuser le livret Dujardin.
+assets/user-files/*
+!assets/user-files/README.md
+
+# Le kit régénère des découpes et des copies du matériel Dujardin. Elles sont
+# reconstruites à la demande par `npm run kit` et ne doivent jamais repartir
+# dans le dépôt — sans quoi le nettoyage de l'historique serait annulé au
+# commit suivant.
+docs/kit-illustrations/refs-cartes/
+docs/kit-illustrations/refs-materiel/
+docs/kit-illustrations/refs-livret/
+docs/kit-illustrations/BRIEFING.pdf

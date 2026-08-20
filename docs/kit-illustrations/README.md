@@ -4,20 +4,26 @@ De quoi générer les 19 illustrations du jeu et les intégrer.
 
 ## Contenu
 
-Dans le dépôt :
+Versionné dans le dépôt :
 
 ```
 PROMPT.md       le préambule, les 19 briefs, la méthode et la grille de contrôle
 palette.png     les six couleurs autorisées, avec leurs codes
+```
+
+Produit localement par `npm run kit`, **non versionné** :
+
+```
 refs-cartes/    chaque carte d'origine, découpée et nommée comme le fichier à produire
-```
-
-Dans l'archive distribuable (`--archive`), en plus :
-
-```
 refs-materiel/  boîte, plateau, dos de cartes, livret, planches de cartes entières
 refs-livret/    les 16 pages du livret, extraites du PDF
+BRIEFING.pdf    le dossier à donner au modèle
 ```
+
+Les photographies du matériel Dujardin ne sont pas dans le dépôt : c'est une
+reconstruction personnelle, elle n'a pas à rediffuser le jeu d'origine. Il faut
+donc disposer des sources en local (voir `assets/user-files/README.md`) pour
+régénérer ces dossiers.
 
 ## Qualité des sources — à lire avant de générer
 

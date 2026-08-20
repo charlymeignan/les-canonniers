@@ -158,6 +158,15 @@ Trois points ont demandé une interprétation, tous documentés en détail dans
 
 ## Sources
 
-Le dossier `assets/user-files/` contient le scan du livret (`canon_rg.pdf`) et
-les photos du matériel qui ont servi de référence. `docs/` regroupe la
-transcription des règles, l'inventaire du matériel et la spécification initiale.
+Ce projet a été reconstruit à partir d'un exemplaire physique : le scan du
+livret de règles et des photos de la boîte, du plateau et des cartes.
+
+**Ces documents ne sont pas versionnés.** Le livret et les cartes sont l'œuvre
+des Éditions Edmond Dujardin ; cette reconstruction personnelle n'a pas à en
+rediffuser le contenu. Le dossier `assets/user-files/` est donc vide dans le
+dépôt — son `README.md` explique quoi y déposer pour régénérer le kit
+d'illustrations en local.
+
+`docs/` conserve en revanche le travail dérivé : transcription des règles,
+inventaire du matériel, table de succession implémentée et briefs
+d'illustration.

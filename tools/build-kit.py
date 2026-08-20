@@ -172,8 +172,12 @@ def main():
                     help='produit aussi le PDF de briefing et une archive ZIP')
     args = ap.parse_args()
 
-    if not os.path.isdir(SRC):
-        sys.exit(f'Sources introuvables : {SRC}')
+    photos = [f for f in os.listdir(SRC) if f.endswith('.jpg')] if os.path.isdir(SRC) else []
+    if not photos:
+        sys.exit(
+            "Les photos d'origine sont absentes de assets/user-files/.\n"
+            "Elles ne sont pas versionnées : le dépôt ne rediffuse pas le livret\n"
+            "Dujardin. Voir assets/user-files/README.md pour les remettre en place.")
 
     decouper_planches(os.path.join(OUT, 'refs-cartes'))
     nuancier(os.path.join(OUT, 'palette.png'))
