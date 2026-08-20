@@ -11,7 +11,8 @@
     "test:sim": "node test/simulation.mjs",
     "test:ui": "node test/ui.test.mjs",
     "shots": "node test/screenshot.mjs /tmp/shots",
-    "cards:scan": "node tools/scan-cards.mjs"
+    "cards:scan": "node tools/scan-cards.mjs",
+    "kit": "python3 tools/build-kit.py --archive"
   },
   "devDependencies": {
     "playwright": "^1.49.0"

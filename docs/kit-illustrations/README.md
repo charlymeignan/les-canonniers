@@ -54,11 +54,26 @@ démarrer.
 3. Générer, contrôler avec la section 5, déposer dans `assets/cards/`, lancer
    `npm run cards:scan`.
 
+## Deux formats de sortie, deux usages
+
+Un modèle d'image ne décompresse ni `.zip` ni `.tar.gz`. En revanche il lit un
+**PDF** nativement, d'un seul envoi.
+
+- **`BRIEFING.pdf`** — le document à donner au modèle. Il contient la consigne,
+  la palette, les 19 briefs et les planches de cartes en pleine page. Le texte y
+  est du vrai texte, pas une capture : il est lu tel quel.
+- **`canonniers-kit-illustrations.zip`** — les fichiers individuels, pour joindre
+  la référence précise d'une carte au moment de la générer.
+
+En pratique : donner le PDF une fois en début de session pour poser le style,
+puis joindre la vignette de la carte en cours à chaque génération.
+
 ## Régénérer ce kit
 
 ```sh
-python3 tools/build-kit.py            # met à jour docs/kit-illustrations/
-python3 tools/build-kit.py --archive  # produit en plus l'archive autonome
+npm run kit                           # kit + PDF + ZIP
+python3 tools/build-kit.py            # met à jour docs/kit-illustrations/ seulement
+python3 tools/build-pdf.py sortie.pdf # le PDF seul
 ```
 
-Dépendances : `pip install pillow numpy`.
+Dépendances : `pip install pillow numpy fpdf2`.

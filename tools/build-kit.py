@@ -169,7 +169,7 @@ def nuancier(path):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('--archive', action='store_true',
-                    help='produit aussi canonniers-kit-illustrations.tar.gz')
+                    help='produit aussi le PDF de briefing et une archive ZIP')
     args = ap.parse_args()
 
     if not os.path.isdir(SRC):
@@ -185,11 +185,25 @@ def main():
         shutil.copytree(OUT, tmp)
         copier_materiel(os.path.join(tmp, 'refs-materiel'))
         n = extraire_livret(os.path.join(tmp, 'refs-livret'))
-        print(f'  photos du matériel : copiées sans recompression')
+        print('  photos du matériel : copiées sans recompression')
         print(f'  pages du livret    : {n} extraites du PDF sans recompression')
-        out = '/tmp/canonniers-kit-illustrations.tar.gz'
-        subprocess.run(['tar', 'czf', out, '-C', tmp, '.'], check=True)
-        print(f'Archive : {out} ({os.path.getsize(out) / 1e6:.1f} Mo)')
+
+        # Le PDF de briefing : c'est le seul format qu'un modèle d'image lit
+        # d'un seul tenant, sans avoir à décompresser quoi que ce soit.
+        pdf = os.path.join(tmp, 'BRIEFING.pdf')
+        subprocess.run([sys.executable, os.path.join(ROOT, 'tools', 'build-pdf.py'), pdf],
+                       check=True)
+        shutil.copyfile(pdf, '/tmp/canonniers-briefing.pdf')
+
+        # ZIP plutôt que tar.gz : il s'ouvre d'un double-clic partout.
+        base = '/tmp/canonniers-kit-illustrations'
+        for reste in (base + '.zip', base + '.tar.gz'):
+            if os.path.exists(reste):
+                os.remove(reste)
+        shutil.make_archive(base, 'zip', tmp)
+        print(f'Archive : {base}.zip ({os.path.getsize(base + ".zip") / 1e6:.1f} Mo)')
+        print(f'PDF     : /tmp/canonniers-briefing.pdf '
+              f'({os.path.getsize("/tmp/canonniers-briefing.pdf") / 1e6:.1f} Mo)')
 
 
 if __name__ == '__main__':

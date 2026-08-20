@@ -107,8 +107,14 @@ reproductions des dessins imprimés d'origine.
 Les dessins SVG ne sont qu'un repli. Déposer un fichier nommé d'après la carte
 dans `assets/cards/` (par exemple `boulet_de_canon.webp`), lancer
 `npm run cards:scan`, et l'image remplace le dessin — carte par carte, sans
-jamais casser le reste. Le format attendu et un prompt de génération calibré sur
-les photos du kit sont dans [`docs/illustrations.md`](docs/illustrations.md).
+jamais casser le reste. Le format attendu est dans
+[`docs/illustrations.md`](docs/illustrations.md).
+
+Pour générer ces illustrations, `npm run kit` produit un dossier de briefing
+**PDF** — le seul format qu'un modèle d'image lit d'un seul tenant, sans
+décompression — et une archive ZIP des références individuelles. Le contenu et
+la méthode sont décrits dans
+[`docs/kit-illustrations/`](docs/kit-illustrations/README.md).
 
 ## Mise en ligne
 
