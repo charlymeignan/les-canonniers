@@ -74,9 +74,11 @@ navigateur et les simulations headless.
 ## Tests
 
 ```sh
-node test/rules.test.mjs        # 46 tests, chacun citant sa cellule du livret
+node test/rules.test.mjs        # 49 tests, chacun citant sa cellule du livret
 node test/simulation.mjs 300    # 300 parties ordinateur contre ordinateur
 node test/ui.test.mjs           # parcours navigateur (serveur requis)
+node test/humain-vs-ia.test.mjs # partie complète pilotée depuis l'interface (serveur requis)
+SEATS=human,human node test/humain-vs-ia.test.mjs   # la même en pass-and-play
 node test/screenshot.mjs /tmp/shots   # captures mobiles (serveur requis)
 ```
 

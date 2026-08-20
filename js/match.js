@@ -38,9 +38,14 @@ export function* aiTurn(state) {
 
     // Un but ouvre la fenêtre « but refusé » : elle doit être résolue avant
     // toute autre chose, y compris la suite du tour.
+    //
+    // Sa résolution décide elle-même à qui revient la main, et le tour ne se
+    // termine donc pas ici : le marqueur « rejoue immédiatement » (page 11) et
+    // l'auteur d'un but refusé « joue immédiatement un nouveau coup d'envoi »
+    // (page 12). Appeler endTurn() derrière escamoterait ce tour-là.
     if (state.pendingGoal) {
       yield* resolveGoalWindow(state);
-      break;
+      return;
     }
 
     if (!shouldContinue(state, player, played)) break;
@@ -58,8 +63,10 @@ export function* aiTurn(state) {
     yield { type: 'pass', playerId: player.id };
   }
 
-  endTurn(state);
+  // Le yield précède la bascule : l'interface affiche encore le tour de
+  // l'ordinateur pendant cette étape, et ne rend la main qu'ensuite.
   yield { type: 'end-turn', playerId: player.id };
+  endTurn(state);
 }
 
 /**

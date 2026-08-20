@@ -75,9 +75,36 @@ n'a pas non plus les cartes attendues en main, plus personne ne peut enchaîner.
 Le livret ne traite ce cas que pour le coup d'envoi (page 10 : on se défausse de
 proche en proche jusqu'à ce qu'un joueur puisse jouer « passe »).
 
-**Retenu :** la même logique est étendue à toute la partie. Quand tous les
-joueurs ont passé à la suite, la pile part à la défausse, le ballon revient au
-centre et la partie repart sur un coup d'envoi. **C'est le seul ajout au livret.**
+**Retenu :** la procédure de la page 9 s'applique d'abord — le joueur bloqué se
+défausse, complète sa main au talon, et son voisin tente sa chance. Elle dénoue
+presque tous les cas, puisque les mains se renouvellent à chaque tour.
+
+Pour le reste, la même logique est étendue à toute la partie : après **deux tours
+de table complets** sans qu'une seule carte ait été posée, la pile part à la
+défausse, le ballon revient au centre et la partie repart sur un coup d'envoi.
+**C'est le seul ajout au livret.** Deux tours de table et non un seul : un joueur
+momentanément démuni ne doit pas suffire à effacer une action en cours.
+
+Le retour au centre se produit donc sans qu'un but ait été marqué. L'interface
+l'annonce explicitement (« Situation bloquée »), faute de quoi il passe pour un
+défaut du jeu.
+
+## La défausse, seul moteur de fin de partie
+
+Page 9 : *« Si, après avoir pris une carte au talon, vous vous apercevez qu'il
+vous est impossible de jouer, débarrassez-vous de celle de vos cartes que vous
+jugez la moins utile. »* Page 10 applique la même mécanique au coup d'envoi :
+sans carte « passe », on se défausse et le voisin devient bénéficiaire.
+
+La condition du livret est *« impossible de jouer »*, pas *« neuf cartes en
+main »*. Tant que le talon est garni les deux coïncident — on pioche, on ne pose
+rien, on redescend à huit. Une fois le talon vide il n'y a plus de pioche, donc
+plus de neuvième carte, et la seule lecture correcte est celle du livret :
+**un tour sans carte posée coûte une carte**, quel que soit l'effectif de la
+main. C'est aussi ce qui garantit que la partie se termine : sans cela deux
+joueurs bloqués se rendent la main indéfiniment.
+
+Une défausse par tour, pas plus.
 
 ## La carte vierge
 
@@ -87,13 +114,19 @@ distribuée. Le deck jouable compte **108 cartes**.
 
 ## Ce qui est vérifié, et comment
 
-- `test/rules.test.mjs` — 46 tests, chacun citant la cellule de la transcription
+- `test/rules.test.mjs` — 49 tests, chacun citant la cellule de la transcription
   qu'il vérifie. Un échec signifie que le moteur a tort, pas le livret.
 - `test/simulation.mjs` — parties ordinateur contre ordinateur. À chaque tour :
   conservation et unicité des 108 cartes, taille des mains, validité du camp du
   ballon, progression vers la fin. Signale toute carte **jamais posée**, ce qui
   trahit une branche morte de la table.
 - `test/ui.test.mjs` — parcours réels en navigateur, dont une partie complète.
+- `test/humain-vs-ia.test.mjs` — une partie complète pilotée depuis l'interface,
+  du coup d'envoi à l'épuisement des cartes. `SEATS=human,human` rejoue la même
+  partie en pass-and-play. Elle échoue si le nombre de cartes en circulation
+  cesse de décroître, si un bouton reste sans effet, si un marqueur humain ne
+  reprend pas la main comme le veut la page 11, ou si la fin de partie n'est pas
+  annoncée : c'est le test qui attrape les blocages.
 
 ## Bugs que ces vérifications ont attrapés
 
@@ -109,6 +142,38 @@ distribuée. Le deck jouable compte **108 cartes**.
   neuf cartes : le bouton « Fin du tour » restait sans effet et la partie était
   définitivement figée. La défausse prévue page 9 n'était pas branchée sur
   l'interface.
+- **Boucle infinie en fin de partie.** Talon vide, pile vide, une main sans
+  carte « passe » : aucune défausse n'était réclamée (la main ne dépassait pas
+  huit cartes), rien ne sortait donc du jeu et les deux joueurs se renvoyaient la
+  main sans fin. Détecté par `test/humain-vs-ia.test.mjs`, qui mesure la
+  décroissance des cartes en circulation.
+- **Tour de l'ordinateur rendu trop tôt.** `endTurn()` s'exécutait avant le
+  dernier pas du générateur : l'interface désignait déjà l'humain comme joueur
+  actif alors que l'animation de l'ordinateur courait encore, et tous les clics
+  étaient silencieusement ignorés.
+- **L'ordinateur bradait ses « passe ».** La table de rareté de l'IA classait la
+  passe au plus bas — c'est la carte la plus commune — et la sacrifiait donc en
+  premier à la défausse. Or c'est la **seule** carte jouable quand la pile est
+  vide : une fois ses passes parties, l'ordinateur ne pouvait plus donner le coup
+  d'envoi et se défaussait tour après tour. Un tiers des tours de simulation se
+  passaient ainsi. L'IA garde désormais toujours une passe.
+- **Retour au centre inexpliqué.** La pile était remisée dès qu'un seul tour de
+  table passait sans carte posée, et l'interface n'en disait rien : le plateau
+  revenait au coup d'envoi sans but marqué, ce qui se lit comme un bug. Le seuil
+  est passé à deux tours de table et la remise en jeu est annoncée.
+- **Le tour du marqueur escamoté.** Page 11 : le joueur qui marque « rejoue
+  immédiatement ». Le moteur clôturait pourtant le tour derrière la résolution du
+  but, ce qui rendait la main à l'adversaire ; côté interface, un marqueur humain
+  se retrouvait devant des dos de cartes, sans autre bouton actif que la
+  défausse. Même défaut pour l'auteur d'un « but refusé », à qui la page 12 donne
+  le coup d'envoi suivant. Le marqueur ne prenait par ailleurs qu'une seule carte
+  au talon, là où le livret demande de compléter à huit.
+- **Fin de partie invisible.** Le message « Fin de la partie » s'affichait dans
+  le même bandeau que les autres annonces et pouvait être recouvert par celle qui
+  suivait ; une fois le bandeau refermé, le plateau restait en place, les boutons
+  répondaient encore et la partie semblait ne jamais s'achever. La fin est
+  désormais un état de l'interface : plus rien ne se joue, et le bouton principal
+  propose une nouvelle partie.
 - **Moteur bâti sur un résumé.** Les premières versions s'appuyaient sur une
   synthèse des règles et non sur le texte, et manquaient l'axe « position du
   ballon » du tableau. Le moteur a été réécrit sur la transcription.

@@ -168,16 +168,29 @@ export function shouldRefuseGoal() {
   return true;
 }
 
-/** Carte à défausser quand le joueur ne peut rien poser : la moins précieuse. */
+/**
+ * Carte à défausser quand le joueur ne peut rien poser : la moins précieuse.
+ *
+ * Un garde-fou s'impose sur « passe ». C'est la carte la moins chère du jeu, donc
+ * la première que la table de rareté sacrifie — mais c'est aussi la **seule**
+ * jouable quand la pile est vide (page 10 : le coup d'envoi commence par une
+ * passe). Une IA qui brade ses passes se condamne, une fois la pile remise à
+ * zéro, à se défausser tour après tour sans jamais pouvoir relancer le jeu. On
+ * garde donc toujours une passe sous la main.
+ */
+function valeurDefausse(cardId, counts) {
+  const base = RARITY[cardId] ?? 20;
+  if (cardId === 'passe' && counts.passe === 1) return 90; // la dernière ne se brade pas
+  return base - Math.min(counts[cardId], 5) * 3;
+}
+
 export function chooseDiscard(state, player) {
   const hand = state.hands[player.id];
   if (hand.length === 0) return null;
   const counts = tally(hand);
-  return [...hand].sort((a, b) => {
-    const ra = (RARITY[a.cardId] ?? 20) - Math.min(counts[a.cardId], 5) * 3;
-    const rb = (RARITY[b.cardId] ?? 20) - Math.min(counts[b.cardId], 5) * 3;
-    return ra - rb;
-  })[0];
+  return [...hand].sort(
+    (a, b) => valeurDefausse(a.cardId, counts) - valeurDefausse(b.cardId, counts),
+  )[0];
 }
 
 export function describeCard(cardId) {

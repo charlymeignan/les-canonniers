@@ -59,6 +59,7 @@ export function createGame(seats, rng = Math.random) {
     consecutivePasses: 0,
     turnCardsPlayed: 0,
     turnMustEnd: false,
+    turnDiscarded: false,
     turnPhase: 'kickoff', // 'kickoff' | 'draw' | 'play' | 'refill' | 'but-refuse-window' | 'over'
     history: [],
     kickoffCandidates: null,
@@ -123,6 +124,7 @@ export function playButRefuseOutOfTurn(state, playerId, cardUid) {
   state.currentPlayerIndex = state.players.findIndex((pl) => pl.id === playerId);
   state.turnCardsPlayed = 0;
   state.turnMustEnd = false;
+  state.turnDiscarded = false;
   state.turnPhase = 'play';
 }
 
@@ -158,6 +160,7 @@ export function drawForTurn(state) {
   state.turnPhase = 'play';
   state.turnCardsPlayed = 0;
   state.turnMustEnd = false;
+  state.turnDiscarded = false;
 }
 
 /** Cartes jouables par le joueur actif dans son état actuel (main filtrée). */
@@ -257,13 +260,28 @@ export function playCard(state, cardUid) {
 /**
  * Le joueur actif doit-il se défausser avant de pouvoir rendre la main ?
  *
- * Après la pioche la main compte neuf cartes. Si le tour se termine sans qu'une
- * seule carte ait été posée, il faut en déposer une sur la pile de défausse
- * pour revenir à huit (page 9).
+ * Page 9 : « Si, après avoir pris une carte au talon, vous vous apercevez qu'il
+ * vous est impossible de jouer, débarrassez-vous de celle de vos cartes que vous
+ * jugez la moins utile. »
+ *
+ * Deux cas, qui sont le même vu du livret :
+ * - la main compte neuf cartes après la pioche et le tour s'achève sans qu'une
+ *   carte ait été posée : on redescend à huit ;
+ * - le talon est vide, donc il n'y a pas eu de pioche, et aucune carte de la
+ *   main ne peut suivre la carte exposée : il faut quand même se défausser.
+ *   Sans ce second cas la partie tourne en rond — plus rien ne sort du jeu et
+ *   les joueurs se rendent la main indéfiniment.
  */
 export function mustDiscard(state) {
   const p = activePlayer(state);
-  return !!p && state.hands[p.id].length > 8;
+  if (!p) return false;
+  const hand = state.hands[p.id];
+  if (hand.length > 8) return true;
+  if (state.turnDiscarded) return false;
+  return hand.length > 0
+    && state.turnPhase === 'play'
+    && state.turnCardsPlayed === 0
+    && legalHandCards(state).length === 0;
 }
 
 /** À appeler quand la fenêtre "but refusé" est passée sans riposte : le but est validé. */
@@ -273,16 +291,22 @@ export function confirmGoal(state) {
   state.teams[teamId].score += 1;
   logEvent(state, { type: 'goal-confirmed', teamId, playerId });
 
-  // Le joueur ramasse la pile de jeu, la pose devant lui (défausse), pioche une
-  // carte au talon, complète sa main à 8, et rejoue immédiatement (page 11).
+  // Page 11 : « Le joueur qui vient de marquer un but ramasse la pile de jeu, la
+  // pose devant lui, complète à huit ses cartes en main et rejoue immédiatement
+  // […] dans les mêmes conditions que pour le coup d'envoi. » Il complète donc à
+  // huit, il ne prend pas qu'une carte.
   state.defausse.push(...state.pileDeJeu);
   state.pileDeJeu = [];
-  if (state.talon.length > 0) state.hands[playerId].push(state.talon.pop());
+  const mainMarqueur = state.hands[playerId];
+  while (mainMarqueur.length < 8 && state.talon.length > 0) {
+    mainMarqueur.push(state.talon.pop());
+  }
   state.ballCamp = 'centre';
   state.pendingGoal = null;
   state.turnPhase = 'play';
   state.turnCardsPlayed = 0;
   state.turnMustEnd = false;
+  state.turnDiscarded = false;
   state.currentPlayerIndex = state.players.findIndex((pl) => pl.id === playerId);
   checkVictory(state);
 }
@@ -319,6 +343,7 @@ export function discardExcess(state, cardUid) {
   const idx = hand.findIndex((c) => c.uid === cardUid);
   if (idx === -1) return;
   state.defausse.push(hand.splice(idx, 1)[0]);
+  state.turnDiscarded = true;
 }
 
 /**
@@ -328,18 +353,23 @@ export function discardExcess(state, cardUid) {
 export function endTurn(state) {
   const p = activePlayer(state);
   const hand = state.hands[p.id];
-  if (hand.length > 8) return false;
+  if (mustDiscard(state)) return false;
 
-  // Un tour sans aucune carte posée est un "passe". Si tout le monde passe à la
-  // suite, la situation est bloquée : personne ne peut enchaîner sur la carte
-  // exposée. Le livret ne décrit ce cas que pour le coup d'envoi (page 10, on
-  // défausse jusqu'à ce qu'un joueur puisse jouer "passe") ; on étend la même
-  // logique à toute la partie en remisant la pile et en relançant un coup
-  // d'envoi, plutôt que de laisser la partie s'arrêter. Choix assumé, documenté
-  // dans docs/regles-implementees.md.
+  // Un tour sans aucune carte posée est un "passe". La procédure du livret
+  // s'applique d'abord : le joueur bloqué s'est défaussé (page 9), il complète sa
+  // main au talon, et son voisin tente sa chance à son tour. C'est ainsi que la
+  // situation se dénoue presque toujours.
+  //
+  // Reste le cas où la carte exposée n'offre de suite à personne et où le
+  // renouvellement des mains n'y change rien. Après **deux tours de table
+  // complets** sans qu'une seule carte ait été posée, on remise la pile et le
+  // ballon revient au centre pour un nouveau coup d'envoi. Deux tours de table,
+  // et non un seul : un joueur momentanément démuni ne doit pas suffire à effacer
+  // une action en cours. C'est le seul ajout au livret, documenté dans
+  // docs/regles-implementees.md.
   if (state.turnCardsPlayed === 0) {
     state.consecutivePasses += 1;
-    if (state.consecutivePasses >= state.players.length && state.pileDeJeu.length > 0) {
+    if (state.consecutivePasses >= state.players.length * 2 && state.pileDeJeu.length > 0) {
       state.defausse.push(...state.pileDeJeu);
       state.pileDeJeu = [];
       state.ballCamp = 'centre';
@@ -357,6 +387,7 @@ export function endTurn(state) {
   state.turnPhase = 'draw';
   state.turnCardsPlayed = 0;
   state.turnMustEnd = false;
+  state.turnDiscarded = false;
   checkExhaustion(state);
   return true;
 }

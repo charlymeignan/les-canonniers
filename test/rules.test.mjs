@@ -10,7 +10,7 @@ import { totalCardCount, buildFullDeck, CARD_DEFS, CARD_ORDER } from '../js/deck
 import { getLegalCardIds, isLegalPlay, changesCamp, threatensGoal } from '../js/rules.js';
 import {
   createGame, activePlayer, playCard, endTurn, butRefuseHolders,
-  playButRefuseOutOfTurn, legalHandCards, mustDiscard, discardExcess,
+  playButRefuseOutOfTurn, legalHandCards, mustDiscard, discardExcess, confirmGoal,
   TEAM_VERT, TEAM_BLANC,
 } from '../js/state.js';
 
@@ -286,6 +286,78 @@ test('endTurn refuse de clore tant que la défausse est due', () => {
   discardExcess(g, 'h0');
   assert.equal(endTurn(g), true);
   assert.equal(activePlayer(g).id, 'p1');
+});
+test('talon vide : le joueur bloqué se défausse quand même (page 9)', () => {
+  // Le cas qui figeait la partie : sans pioche la main ne dépasse jamais huit
+  // cartes, donc aucune défausse n'était réclamée et les joueurs se rendaient la
+  // main indéfiniment. Le livret ne conditionne pas la défausse au nombre de
+  // cartes : « s'il vous est impossible de jouer, débarrassez-vous de celle de
+  // vos cartes que vous jugez la moins utile ».
+  const g = createGame(['Alice', 'Bruno'], seededRng(31));
+  g.currentPlayerIndex = 0; g.turnPhase = 'play'; g.ballCamp = 'centre';
+  g.talon = [];
+  g.pileDeJeu = [];
+  g.hands.p0 = Array.from({ length: 6 }, (_, i) => ({ uid: `k${i}`, cardId: 'but' }));
+
+  assert.equal(legalHandCards(g).length, 0, 'au coup d’envoi seule « passe » est jouable');
+  assert.equal(mustDiscard(g), true, 'six cartes en main, mais aucune jouable');
+  assert.equal(endTurn(g), false);
+
+  discardExcess(g, 'k0');
+  assert.equal(g.hands.p0.length, 5);
+  assert.equal(mustDiscard(g), false, 'une seule carte défaussée par tour');
+  assert.equal(endTurn(g), true);
+  assert.equal(activePlayer(g).id, 'p1', 'le coup d’envoi passe au voisin (page 10)');
+});
+
+test('la pile n’est remisée qu’après deux tours de table sans coup joué', () => {
+  const g = createGame(['Alice', 'Bruno'], seededRng(55));
+  g.currentPlayerIndex = 0; g.turnPhase = 'play'; g.ballCamp = TEAM_VERT;
+  // Arrêt exposé : côté « ripostez », le livret ne laisse aucune carte.
+  g.pileDeJeu = [{ uid: 'x', cardId: 'arret', teamId: B, playerId: 'p1' }];
+  g.talon = [];
+  for (const id of ['p0', 'p1']) {
+    g.hands[id] = Array.from({ length: 4 }, (_, i) => ({ uid: `${id}-${i}`, cardId: 'but' }));
+  }
+
+  const remises = () => g.history.filter((h) => h.type === 'deadlock-reset').length;
+  for (let tour = 0; tour < 3; tour++) {
+    const p = activePlayer(g);
+    discardExcess(g, g.hands[p.id][0].uid);
+    assert.equal(endTurn(g), true);
+    assert.equal(remises(), 0, `pas de remise après ${tour + 1} tour(s)`);
+    g.turnPhase = 'play';
+  }
+  const p = activePlayer(g);
+  discardExcess(g, g.hands[p.id][0].uid);
+  assert.equal(endTurn(g), true);
+  assert.equal(remises(), 1, 'remise au quatrième tour : deux tours de table à deux joueurs');
+  assert.equal(g.pileDeJeu.length, 0);
+  assert.equal(g.ballCamp, 'centre');
+});
+
+test('but validé : le marqueur complète à huit et rejoue immédiatement (page 11)', () => {
+  const g = createGame(['Alice', 'Bruno'], seededRng(63));
+  g.currentPlayerIndex = 0; g.turnPhase = 'play'; g.ballCamp = TEAM_BLANC;
+  g.pileDeJeu = [
+    { uid: 'a', cardId: 'passe', teamId: V, playerId: 'p0' },
+    { uid: 'b', cardId: 'tir_au_but', teamId: V, playerId: 'p0' },
+  ];
+  g.hands.p0 = [{ uid: 'g1', cardId: 'but' }];
+  g.hands.p1 = [{ uid: 'z1', cardId: 'arret' }]; // pas de « but refusé » en face
+
+  playCard(g, 'g1');
+  confirmGoal(g);
+
+  assert.equal(g.teams.vert.score, 1);
+  assert.equal(activePlayer(g).id, 'p0', 'le marqueur garde la main');
+  assert.equal(g.turnPhase, 'play', 'il rejoue sans attendre un nouveau tour');
+  assert.equal(g.hands.p0.length, 8, 'il complète à huit, il ne prend pas qu’une carte');
+  assert.equal(g.ballCamp, 'centre');
+  assert.equal(g.pileDeJeu.length, 0, 'il a ramassé la pile de jeu');
+  assert.deepEqual(
+    getLegalCardIds({ ...g, activeTeamId: TEAM_VERT }).legalIds, ['passe'],
+    'mêmes conditions qu’un coup d’envoi : obligation de jouer « passe »');
 });
 
 console.log('\nPartie complète');

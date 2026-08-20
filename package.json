@@ -10,6 +10,7 @@
     "test:rules": "node test/rules.test.mjs",
     "test:sim": "node test/simulation.mjs",
     "test:ui": "node test/ui.test.mjs",
+    "test:duel": "node test/humain-vs-ia.test.mjs",
     "shots": "node test/screenshot.mjs /tmp/shots",
     "cards:scan": "node tools/scan-cards.mjs",
     "kit": "python3 tools/build-kit.py --archive"

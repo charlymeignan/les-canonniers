@@ -277,6 +277,14 @@ function renderHand() {
 }
 
 function renderActions() {
+  // Partie terminée : plus rien ne doit pouvoir être joué, et le bouton mène à
+  // une nouvelle partie. Sans cet état, le plateau reste en place une fois le
+  // message de fin refermé et la partie a l'air de ne jamais s'achever.
+  if (game.turnPhase === 'over') {
+    $('#btn-play').disabled = true;
+    $('#btn-end').textContent = 'Nouvelle partie';
+    return;
+  }
   const rienAJouer = handRevealed && legalHandCards(game).length === 0;
   $('#btn-play').disabled = !selectedUid;
   $('#btn-end').textContent = rienAJouer
@@ -323,16 +331,14 @@ function afterPlay(playedId) {
       const ai = holders[0];
       const card = game.hands[ai.id].find((c) => c.cardId === 'but_refuse');
       playButRefuseOutOfTurn(game, ai.id, card.uid);
-      handRevealed = false;
-      render();
-      flashMessage('But refusé', `${ai.name} sort la carte « but refusé » : l'arbitre annule le but. Le ballon revient au centre.`, 'red');
-      openPassScreen();
+      flashMessage('But refusé', `${ai.name} sort la carte « but refusé » : l'arbitre annule le but. Le ballon revient au centre et ${ai.name} relance par une passe.`, 'red');
+      poursuivreApresBut(null);
       return;
     } else {
+      const marqueur = game.pendingGoal.playerId;
       confirmGoal(game);
-      handRevealed = false;
-      flashMessage('But !', `L'équipe ${game.teams[[...game.history].reverse().find((h) => h.type === 'goal-confirmed').teamId].name} marque. Le marqueur ramasse la pile, complète sa main à huit cartes et relance par une passe.`);
-      render();
+      flashMessage('But !', `L'équipe ${game.teams[[...game.history].reverse().find((h) => h.type === 'goal-confirmed').teamId].name} marque. Vous ramassez la pile, complétez votre main à huit cartes et rejouez immédiatement : le ballon est au centre, relancez par une passe.`);
+      poursuivreApresBut(marqueur);
     }
     return;
   }
@@ -370,6 +376,9 @@ function finishTurn() {
   selectedUid = null;
   handRevealed = false;
   render();
+  // L'annonce d'abord : openPassScreen() peut afficher la fin de partie, et les
+  // deux se partagent le même bandeau.
+  annoncerRemiseEnJeu();
   openPassScreen();
 }
 
@@ -378,8 +387,8 @@ function openDiscardPicker() {
   const p = activePlayer(game);
   const bloque = legalHandCards(game).length === 0;
   $('#discard-text').textContent = bloque
-    ? "Aucune de vos cartes ne peut suivre la carte exposée. Déposez-en une sur la pile de défausse : la main passe au joueur suivant."
-    : "Vous passez sans rien poser. Déposez une carte sur la pile de défausse pour revenir à huit cartes en main.";
+    ? "Aucune de vos cartes ne peut suivre la carte exposée. Le livret (page 9) demande alors de se débarrasser de la carte que vous jugez la moins utile : elle part sur la pile de défausse, hors du jeu, et la main passe au joueur suivant."
+    : "Vous rendez la main sans avoir rien posé. La carte prise au talon vous en fait neuf : déposez-en une sur la pile de défausse pour revenir à huit (page 9).";
   $('#discard-grid').innerHTML = game.hands[p.id]
     .map((card) => renderCard(card.cardId)
       .replace('<div class="card', `<button type="button" data-discard="${card.uid}" class="card`)
@@ -434,7 +443,7 @@ function runAITurn() {
       aiRunning = false;
       setAIBanner(false);
       render();
-      if (game.turnPhase === 'over') { showEndOfMatch(); return; }
+      annoncerRemiseEnJeu();
       openPassScreen();
       return;
     }
@@ -470,6 +479,15 @@ function setAIBanner(on, text = '') {
   if (text) $('#ai-banner-text').textContent = text;
 }
 
+/** Quitte la partie en cours et revient à l'écran d'accueil. */
+function retourAccueil() {
+  aiToken += 1; // interrompt une éventuelle boucle d'IA en cours
+  aiRunning = false;
+  setAIBanner(false);
+  game = null;
+  showScreen('screen-home');
+}
+
 function showEndOfMatch() {
   const { vert, blanc } = game.teams;
   const verdict = game.winner === 'nul'
@@ -488,6 +506,27 @@ function revealHand() {
   render();
 }
 
+/**
+ * Suite d'un but validé ou refusé. Ce n'est pas une fin de tour ordinaire : le
+ * marqueur « rejoue immédiatement » (page 11) et l'auteur d'un but refusé « joue
+ * immédiatement un nouveau coup d'envoi » (page 12). Quand la main reste au même
+ * joueur humain, il ne faut donc ni écran de passage ni cartes retournées —
+ * sinon il se retrouve devant des dos de cartes, sans autre issue que la
+ * défausse.
+ */
+function poursuivreApresBut(idAvant) {
+  const p = activePlayer(game);
+  selectedUid = null;
+  if (p && !p.isAI && p.id === idAvant) {
+    handRevealed = true;
+    render();
+    return;
+  }
+  handRevealed = false;
+  render();
+  openPassScreen();
+}
+
 function openButRefuseWindow(holders) {
   const names = holders.map((h) => h.name).join(', ');
   $('#refuse-text').textContent =
@@ -496,6 +535,27 @@ function openButRefuseWindow(holders) {
     .map((h) => `<button type="button" class="btn btn--small" data-refuse-player="${h.id}">${h.name} joue « but refusé »</button>`)
     .join('') + `<button type="button" class="btn btn--small btn--ghost" data-refuse-skip>Personne ne conteste — but validé</button>`;
   openOverlay('overlay-refuse');
+}
+
+/**
+ * La pile vient-elle d'être remisée faute de suite possible ? Le plateau repart
+ * alors au coup d'envoi sans qu'aucun but ait été marqué : sans un mot
+ * d'explication, ce retour au centre passe pour un bug.
+ */
+let remisesAnnoncees = 0;
+function annoncerRemiseEnJeu() {
+  if (game.turnPhase === 'over') return false;
+  const total = game.history.filter((h) => h.type === 'deadlock-reset').length;
+  if (total <= remisesAnnoncees) return false;
+  remisesAnnoncees = total;
+  flashMessage(
+    'Situation bloquée',
+    'Personne n\'a pu enchaîner sur la carte exposée pendant deux tours de table. '
+    + 'L\'action est abandonnée : la pile de jeu part à la défausse et le ballon '
+    + 'revient au centre. Aucun but n\'est marqué — on repart sur un coup d\'envoi, '
+    + 'par une passe.',
+    'gold');
+  return true;
 }
 
 function flashMessage(title, body, tone = 'ink') {
@@ -578,6 +638,7 @@ function startGame() {
   selectedUid = null;
   handRevealed = false;
   aiRunning = false;
+  remisesAnnoncees = 0;
   setAIBanner(false);
   showScreen('screen-game');
   render();
@@ -662,12 +723,8 @@ export async function bindUI() {
 
   $('#btn-log').addEventListener('click', () => { renderLog(); openOverlay('overlay-log'); });
   $('#btn-quit').addEventListener('click', () => {
-    if (!confirm('Abandonner la partie en cours ?')) return;
-    aiToken += 1; // interrompt une éventuelle boucle d'IA en cours
-    aiRunning = false;
-    setAIBanner(false);
-    game = null;
-    showScreen('screen-home');
+    if (game.turnPhase !== 'over' && !confirm('Abandonner la partie en cours ?')) return;
+    retourAccueil();
   });
 
   $('#hand-scroll').addEventListener('click', (e) => {
@@ -683,11 +740,12 @@ export async function bindUI() {
   });
 
   $('#btn-play').addEventListener('click', () => {
-    if (aiRunning) return;
+    if (aiRunning || game.turnPhase === 'over') return;
     doPlaySelected();
   });
   $('#btn-end').addEventListener('click', () => {
     if (aiRunning || game.pendingGoal) return;
+    if (game.turnPhase === 'over') { retourAccueil(); return; }
     finishTurn();
   });
 
@@ -702,6 +760,7 @@ export async function bindUI() {
     selectedUid = null;
     handRevealed = false;
     render();
+    annoncerRemiseEnJeu();
     openPassScreen();
   });
 
@@ -713,19 +772,17 @@ export async function bindUI() {
       const card = game.hands[pid].find((c) => c.cardId === 'but_refuse');
       playButRefuseOutOfTurn(game, pid, card.uid);
       closeOverlay('overlay-refuse');
-      handRevealed = false;
-      render();
-      flashMessage('But refusé', 'L\'arbitre annule le but. Le ballon revient au centre et l\'équipe qui a contesté relance par une passe.', 'red');
-      if (activePlayer(game)?.isAI) runAITurn();
+      flashMessage('But refusé', 'L\'arbitre annule le but. Le ballon revient au centre et vous relancez par une passe.', 'red');
+      // La carte se joue hors tour : son auteur devient le joueur actif.
+      poursuivreApresBut(pid);
       return;
     }
     if (skip) {
+      const marqueur = game.pendingGoal?.playerId ?? null;
       confirmGoal(game);
       closeOverlay('overlay-refuse');
-      handRevealed = false;
-      render();
-      flashMessage('But validé', 'Le marqueur ramasse la pile de jeu, complète sa main à huit cartes et relance immédiatement par une passe.', 'ink');
-      if (activePlayer(game)?.isAI) runAITurn();
+      flashMessage('But validé', 'Le marqueur ramasse la pile de jeu, complète sa main à huit cartes et rejoue immédiatement : le ballon est au centre, il relance par une passe.', 'ink');
+      poursuivreApresBut(marqueur);
     }
   });
 
