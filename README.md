@@ -62,6 +62,8 @@ js/ai.js              joueur artificiel
 js/assets-mapping.js  pictogrammes et illustrations SVG
 js/ui.js              rendu et interactions
 js/main.js            point d'entrée
+assets/cards/         illustrations optionnelles, qui remplacent les dessins SVG
+tools/scan-cards.mjs  recense ces illustrations et écrit leur manifeste
 ```
 
 Les couches ne se mélangent pas : `rules.js` ne connaît que des identifiants de
@@ -99,6 +101,14 @@ répétition tête-bêche.
 faits dans l'esprit graphique du matériel des années 60 (aplats francs cernés de
 noir, maillots à larges bandes, poses sportives lisibles), et non des
 reproductions des dessins imprimés d'origine.
+
+### Remplacer une illustration
+
+Les dessins SVG ne sont qu'un repli. Déposer un fichier nommé d'après la carte
+dans `assets/cards/` (par exemple `boulet_de_canon.webp`), lancer
+`npm run cards:scan`, et l'image remplace le dessin — carte par carte, sans
+jamais casser le reste. Le format attendu et un prompt de génération calibré sur
+les photos du kit sont dans [`docs/illustrations.md`](docs/illustrations.md).
 
 ## Points de règle arbitrés
 

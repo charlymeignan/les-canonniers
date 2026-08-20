@@ -319,6 +319,34 @@ function motionLines(x, y, len = 26, count = 3, spread = 5) {
     ).join('')}</g>`;
 }
 
+// ------------------------------------------- illustrations déposées (option) --
+
+// Illustrations fournies sous forme de fichiers dans assets/cards/. Quand une
+// carte en a une, elle remplace le dessin SVG ; sinon le dessin sert de repli.
+// Le manifeste est produit par `node tools/scan-cards.mjs`.
+let artManifest = {};
+
+export async function loadCardArt(base = 'assets/cards/') {
+  try {
+    const res = await fetch(`${base}manifest.json`, { cache: 'no-cache' });
+    if (!res.ok) return {};
+    const data = await res.json();
+    artManifest = Object.fromEntries(
+      Object.entries(data.cards ?? {}).map(([id, file]) => [id, `${base}${file}`])
+    );
+  } catch {
+    // Pas de manifeste : on reste intégralement en SVG, ce qui est le cas
+    // nominal tant qu'aucune illustration n'a été déposée.
+    artManifest = {};
+  }
+  return artManifest;
+}
+
+/** Chemin de l'illustration déposée pour une carte, ou null. */
+export function cardArtUrl(cardId) {
+  return artManifest[cardId] ?? null;
+}
+
 // ---------------------------------------------------------- API illustrations --
 
 export function illustration(name) {

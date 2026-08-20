@@ -10,7 +10,8 @@
     "test:rules": "node test/rules.test.mjs",
     "test:sim": "node test/simulation.mjs",
     "test:ui": "node test/ui.test.mjs",
-    "shots": "node test/screenshot.mjs /tmp/shots"
+    "shots": "node test/screenshot.mjs /tmp/shots",
+    "cards:scan": "node tools/scan-cards.mjs"
   },
   "devDependencies": {
     "playwright": "^1.49.0"

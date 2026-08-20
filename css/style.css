@@ -822,14 +822,17 @@ button { font: inherit; color: inherit; border: none; background: none; cursor: 
 .card-subtitle {
   position: absolute;
   left: 5px;
-  top: 17%;
-  width: 44%;
+  top: 24%;
+  width: 42%;
   font-family: var(--serif);
-  font-size: 5px;
+  font-size: 5.2px;
   font-style: italic;
   line-height: 1.25;
   color: var(--ink-soft);
 }
+/* Quand la carte porte un sous-titre, les listes de succession descendent
+   d'autant : les deux blocs ne se superposent jamais. */
+.card--has-subtitle .card-lists { top: 32%; }
 
 /* Carte affichée en grand (pile de jeu, sélecteur de joker). */
 .card--lg .card-title { font-size: 15px; }
@@ -1076,4 +1079,15 @@ button { font: inherit; color: inherit; border: none; background: none; cursor: 
   color: var(--ink);
   padding: 1px 5px;
   flex: none;
+}
+
+/* Illustration fournie sous forme de fichier (assets/cards/) : elle occupe le
+   même emplacement que le dessin SVG et se recadre sans déformer. */
+.card-illus--art { overflow: hidden; }
+.card-illus--art img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  object-position: center bottom;
+  display: block;
 }

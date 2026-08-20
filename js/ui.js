@@ -4,7 +4,7 @@
 
 import { CARD_DEFS, CARD_ORDER } from './deck.js';
 import { SUCCESSION } from './rules.js';
-import { ICON_BUILDERS, illustration, ballSvg, coverStriker } from './assets-mapping.js';
+import { ICON_BUILDERS, illustration, ballSvg, coverStriker, loadCardArt, cardArtUrl } from './assets-mapping.js';
 import {
   createGame, activePlayer, drawForTurn, playCard, confirmGoal, endTurn,
   legalHandCards, currentLegalInfo, butRefuseHolders, playButRefuseOutOfTurn,
@@ -58,11 +58,17 @@ export function renderCard(cardId, { large = false, playable = false, muted = fa
     </span>` : '';
 
   const subtitle = def.subtitle ? `<span class="card-subtitle">${def.subtitle}</span>` : '';
-  const illus = def.illus ? `<span class="card-illus">${illustration(def.illus)}</span>` : '';
+
+  // Une illustration déposée dans assets/cards/ prend le pas sur le dessin SVG.
+  const art = cardArtUrl(cardId);
+  const illus = art
+    ? `<span class="card-illus card-illus--art"><img src="${art}" alt="" loading="lazy"></span>`
+    : (def.illus ? `<span class="card-illus">${illustration(def.illus)}</span>` : '');
 
   const classes = [
     'card',
     `card--head-${def.badge}`,
+    def.subtitle && 'card--has-subtitle',
     (!ownList.length && !rivalList.length) && 'card--no-lists',
     large && 'card--lg',
     playable && 'card--playable',
@@ -539,7 +545,11 @@ function renderCover() {
   $('#cover-ball').innerHTML = ballSvg(40);
 }
 
-export function bindUI() {
+export async function bindUI() {
+  // Les illustrations éventuellement déposées sont chargées avant le premier
+  // rendu, pour que la galerie et les mains les affichent d'emblée.
+  await loadCardArt();
+
   // Point d'entrée de test : permet aux captures d'écran et aux tests
   // d'intégration de scénariser une main précise plutôt que de dépendre du
   // hasard de la distribution. Sans effet sur le jeu normal.
