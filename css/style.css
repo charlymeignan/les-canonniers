@@ -663,7 +663,10 @@ button { font: inherit; color: inherit; border: none; background: none; cursor: 
 }
 
 .actions { display: flex; gap: 8px; padding: 0 12px 11px; }
-.actions .btn { margin: 0; }
+.actions .btn { margin: 0; flex: 1 1 0; min-width: 0; }
+/* « Lire » est un accessoire, pas une action de jeu : il prend la place d'un mot
+   et laisse la largeur aux deux boutons qui font avancer le tour. */
+.actions #btn-read { flex: 0 0 auto; width: auto; padding-inline: 14px; }
 
 /* ================================================================ CARTE ==== */
 
@@ -1109,3 +1112,76 @@ button { font: inherit; color: inherit; border: none; background: none; cursor: 
   background-size: cover, 5px 5px;
   background-position: center, 0 0;
 }
+
+/* ====================================================== FICHE DE CARTE ==== */
+
+/* Le texte imprimé sur le carton d'origine est minuscule — quatre points et
+   demi une fois la carte à la taille du pouce. Le reproduire fidèlement dans la
+   main est juste ; le laisser illisible ne l'est pas. Cette fiche donne la même
+   carte en grand, et surtout ses deux listes de succession au corps du texte
+   courant. */
+
+.card-sheet-figure {
+  width: 190px;
+  margin: 0 auto 16px;
+}
+.card-sheet-figure .card { width: 100%; }
+
+.card-sheet-note {
+  font-family: var(--serif);
+  font-style: italic;
+  color: var(--ink-soft);
+  text-align: center;
+  margin: -6px 0 16px;
+}
+.card-sheet-note:empty { display: none; }
+
+.card-sheet-list { margin-bottom: 14px; }
+.card-sheet-list:last-of-type { margin-bottom: 4px; }
+
+.card-sheet-legend {
+  display: block;
+  font-family: var(--display);
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  margin-bottom: 7px;
+}
+
+.card-sheet-list ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.card-sheet-list li {
+  font-family: var(--serif);
+  font-size: 14px;
+  line-height: 1.2;
+  padding: 5px 9px;
+  border: 1.5px solid currentColor;
+  border-radius: 3px;
+}
+.card-sheet-list[data-side='own'] li { color: var(--ink); }
+.card-sheet-list[data-side='rival'] li { color: var(--red); }
+.card-sheet-list ul:empty::after {
+  content: 'Rien : la carte ferme l’action de ce côté.';
+  font-family: var(--serif);
+  font-style: italic;
+  color: var(--ink-soft);
+}
+
+.card-sheet-foot {
+  font-size: 12.5px;
+  line-height: 1.45;
+  color: var(--ink-soft);
+  border-top: 1px solid var(--cream-dark);
+  padding-top: 11px;
+  margin-top: 14px;
+}
+
+/* La carte exposée se lit d'une pression, comme celles de la main. */
+#pile-slot { cursor: pointer; }

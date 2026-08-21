@@ -235,9 +235,26 @@ test('3 - après une touche, suivie de passe, dégagement ou contre-attaque', ()
   assert.ok(changesCamp(pile('touche'), 'degagement', V));
   assert.ok(changesCamp(pile('touche'), 'contre_attaque', V));
 });
-test('4 - faute de l’équipe menacée, sanctionnée par un coup franc', () => {
-  const st = { pileDeJeu: [{ cardId: 'faute', teamId: V }], ballCamp: V };
-  assert.ok(changesCamp(st, 'coup_franc', B), 'la faute a été commise dans son propre camp');
+test('4 - coup franc après une faute : les deux cellules de la page 16', () => {
+  // « (faute commise par les défenseurs) Jouez : coup franc indirect. »
+  // Vert attaque (ballon dans le camp blanc), Blanc faute chez lui, Vert botte :
+  // rien n’est dit du ballon, l’attaquant garde sa position.
+  const defenseursFautifs = { pileDeJeu: [{ cardId: 'faute', teamId: B }], ballCamp: B };
+  assert.ok(!changesCamp(defenseursFautifs, 'coup_franc', V),
+    'le botteur attaquait déjà : le ballon ne bouge pas');
+
+  // « (commises par les attaquants) Jouez : coup franc indirect.
+  //   Le ballon change de camp. »
+  // Vert attaque et faute, Blanc botte depuis son propre camp : l’action se
+  // renverse.
+  const attaquantsFautifs = { pileDeJeu: [{ cardId: 'faute', teamId: V }], ballCamp: B };
+  assert.ok(changesCamp(attaquantsFautifs, 'coup_franc', B),
+    'le botteur subissait la pression : le coup franc le dégage');
+  assert.ok(changesCamp(attaquantsFautifs, 'penalty', B), 'idem pour le penalty');
+
+  // Le résumé de la page 12 dit l’inverse ; ce sont les cellules qui font foi.
+  assert.ok(!changesCamp({ pileDeJeu: [{ cardId: 'faute', teamId: V }], ballCamp: V },
+    'coup_franc', B), 'lecture page 12 écartée : voir docs/regles-implementees.md');
 });
 test('l’arrêt vaut dégagement : le ballon change de camp', () => {
   assert.ok(changesCamp(pile('tir_au_but'), 'arret', B));
@@ -310,7 +327,10 @@ test('talon vide : le joueur bloqué se défausse quand même (page 9)', () => {
   assert.equal(activePlayer(g).id, 'p1', 'le coup d’envoi passe au voisin (page 10)');
 });
 
-test('la pile n’est remisée qu’après deux tours de table sans coup joué', () => {
+test('personne ne peut enchaîner : la pile reste en place, le jeu s’écoule', () => {
+  // Le livret n’offre qu’une issue (page 9) : se défausser et laisser la main.
+  // Rien n’efface l’action en cours — vérifier surtout que la pile de jeu n’est
+  // pas remise à zéro et que le ballon ne revient pas au centre tout seul.
   const g = createGame(['Alice', 'Bruno'], seededRng(55));
   g.currentPlayerIndex = 0; g.turnPhase = 'play'; g.ballCamp = TEAM_VERT;
   // Arrêt exposé : côté « ripostez », le livret ne laisse aucune carte.
@@ -320,20 +340,21 @@ test('la pile n’est remisée qu’après deux tours de table sans coup joué',
     g.hands[id] = Array.from({ length: 4 }, (_, i) => ({ uid: `${id}-${i}`, cardId: 'but' }));
   }
 
-  const remises = () => g.history.filter((h) => h.type === 'deadlock-reset').length;
-  for (let tour = 0; tour < 3; tour++) {
+  const enCirculation = () => g.hands.p0.length + g.hands.p1.length + g.talon.length;
+  for (let tour = 0; tour < 6; tour++) {
+    const avant = enCirculation();
     const p = activePlayer(g);
+    assert.equal(mustDiscard(g), true, 'aucune carte jouable : la défausse est due');
     discardExcess(g, g.hands[p.id][0].uid);
     assert.equal(endTurn(g), true);
-    assert.equal(remises(), 0, `pas de remise après ${tour + 1} tour(s)`);
+    assert.equal(enCirculation(), avant - 1, 'chaque tour bloqué retire une carte du jeu');
+    assert.equal(g.pileDeJeu.length, 1, 'la pile de jeu n’est jamais remisée');
+    assert.equal(g.ballCamp, TEAM_VERT, 'le ballon ne revient pas au centre tout seul');
     g.turnPhase = 'play';
   }
-  const p = activePlayer(g);
-  discardExcess(g, g.hands[p.id][0].uid);
-  assert.equal(endTurn(g), true);
-  assert.equal(remises(), 1, 'remise au quatrième tour : deux tours de table à deux joueurs');
-  assert.equal(g.pileDeJeu.length, 0);
-  assert.equal(g.ballCamp, 'centre');
+
+  // Huit cartes en main au départ, six défaussées : la partie touche à sa fin.
+  assert.equal(enCirculation(), 2);
 });
 
 test('but validé : le marqueur complète à huit et rejoue immédiatement (page 11)', () => {

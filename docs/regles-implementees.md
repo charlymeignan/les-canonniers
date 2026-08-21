@@ -22,7 +22,7 @@ Le tableau des pages 13 à 16 croise **deux** critères :
 `SUCCESSION` reproduit exactement ces deux axes. Les entrées `split: true`
 distinguent le poseur ; les autres valent quel que soit le poseur.
 
-## Les quatre points arbitrés
+## Les cinq points arbitrés
 
 ### 1. Les cellules priment sur les mentions en tête de ligne
 
@@ -34,9 +34,26 @@ contredisent :
 - *« Dégagement doit être précédée d'une INTERCEPTION ou de TOUCHE »*, alors que
   plusieurs cellules l'offrent après une passe.
 
+Une troisième contradiction, plus lourde, concerne le déplacement du ballon après
+une faute. Page 16, les deux cellules sont explicites :
+
+- *« (faute commise par les défenseurs) Jouez : coup franc indirect. »* — rien sur
+  le ballon : le botteur attaquait déjà, il continue ;
+- *« (commises par les attaquants) Jouez : coup franc indirect. **Le ballon change
+  de camp.** »* — le botteur subissait la pression dans son camp, le coup franc
+  l'en dégage.
+
+Le résumé de la page 12 énonce l'inverse : *« Si l'équipe menacée (le ballon étant
+alors dans son propre camp) joue faute ou double faute, sanctionnée par coup
+franc »* — ce qui ferait changer le ballon de camp quand c'est le **défenseur**
+qui a fauté, retirant au botteur la position d'attaque que la faute vient de lui
+offrir.
+
 **Retenu :** les cellules font foi. Elles énumèrent les coups situation par
-situation ; les mentions en tête de ligne décrivent le cas général et l'esprit de
-la carte. Appliquer les deux rendrait certaines cellules imprimées inatteignables.
+situation ; les mentions en tête de ligne et les résumés décrivent le cas général
+et l'esprit de la carte. Appliquer les deux rendrait certaines cellules imprimées
+inatteignables, et pour la faute produirait un déplacement de ballon
+incompréhensible.
 
 ### 2. Une carte qui menace le but rend la main
 
@@ -66,28 +83,46 @@ décrit une rotation normale : *« l'adversaire qui doit jouer entre temps »*,
 des colonnes du tableau est ce qu'on joue **quand son tour vient**, face à la
 carte exposée par l'adversaire.
 
-### 4. Déblocage de la pile — extrapolation assumée
+### 4. Quand plus personne ne peut enchaîner — aucun ajout
 
 Certaines cellules sont vides d'un côté (`arrêt` et `sortie de but` ne laissent
-rien à l'adversaire, `hors-jeu` rien à l'équipe sanctionnée). Si le camp concerné
-n'a pas non plus les cartes attendues en main, plus personne ne peut enchaîner.
+rien à l'adversaire, `hors-jeu` rien à l'équipe sanctionnée), et d'autres
+n'offrent qu'une seule carte : après une `faute`, seul un `coup franc`. Si
+personne n'a en main ce que la table réclame, l'action s'arrête.
 
-Le livret ne traite ce cas que pour le coup d'envoi (page 10 : on se défausse de
-proche en proche jusqu'à ce qu'un joueur puisse jouer « passe »).
+**Retenu :** la procédure de la page 9, et rien d'autre. Le joueur bloqué se
+défausse, complète sa main au talon, son voisin tente sa chance. Les mains se
+renouvellent à chaque tour : l'action repart, ou les cartes s'épuisent et la
+partie s'achève.
 
-**Retenu :** la procédure de la page 9 s'applique d'abord — le joueur bloqué se
-défausse, complète sa main au talon, et son voisin tente sa chance. Elle dénoue
-presque tous les cas, puisque les mains se renouvellent à chaque tour.
+Une version antérieure remisait la pile après plusieurs tours sans coup joué, par
+crainte d'une partie figée. La crainte était infondée : **chaque tour sans carte
+posée retire une carte du jeu**, donc la partie converge toujours. Mesuré sur 120
+parties simulées, avec et sans cette remise en jeu : *aucune* partie bloquée dans
+les deux cas, même longueur (104 contre 106 tours), mais **2,67 buts par partie
+avec, 1,71 sans**. L'ajout ne servait à rien et faussait le score de moitié. Il a
+été supprimé.
 
-Pour le reste, la même logique est étendue à toute la partie : après **deux tours
-de table complets** sans qu'une seule carte ait été posée, la pile part à la
-défausse, le ballon revient au centre et la partie repart sur un coup d'envoi.
-**C'est le seul ajout au livret.** Deux tours de table et non un seul : un joueur
-momentanément démuni ne doit pas suffire à effacer une action en cours.
+**Le livret n'est donc complété sur aucun point.** La pile de jeu n'est jamais
+remise à zéro en cours d'action ; le ballon ne revient au centre que sur un but,
+un but refusé, ou au coup d'envoi.
 
-Le retour au centre se produit donc sans qu'un but ait été marqué. L'interface
-l'annonce explicitement (« Situation bloquée »), faute de quoi il passe pour un
-défaut du jeu.
+### 5. Qui pose la seconde faute
+
+Le livret consacre une ligne entière aux *« 2 FAUTES coup sur coup »*, avec des
+sanctions propres — coup franc direct, penalty. Mais aucune cellule ne dit qui
+pose la seconde carte : celle de la faute simple n'offre que le coup franc, qui
+revient à l'équipe lésée.
+
+**Retenu :** c'est la même équipe qui commet les deux. Les cellules de la double
+faute l'indiquent entre parenthèses — *« (commises par les défenseurs) »*,
+*« (commises par les attaquants) »* — et attribuent donc les deux fautes à un seul
+camp. L'équipe fautive peut ainsi ajouter une seconde faute à la sienne, jamais
+une troisième, et ne botte jamais le coup franc qui la sanctionne.
+
+Sans cette lecture, la double faute serait inatteignable, et avec elle le penalty
+et le coup franc direct : trois cartes imprimées, douze exemplaires, resteraient
+lettre morte.
 
 ## La défausse, seul moteur de fin de partie
 
@@ -157,10 +192,10 @@ distribuée. Le deck jouable compte **108 cartes**.
   vide : une fois ses passes parties, l'ordinateur ne pouvait plus donner le coup
   d'envoi et se défaussait tour après tour. Un tiers des tours de simulation se
   passaient ainsi. L'IA garde désormais toujours une passe.
-- **Retour au centre inexpliqué.** La pile était remisée dès qu'un seul tour de
-  table passait sans carte posée, et l'interface n'en disait rien : le plateau
-  revenait au coup d'envoi sans but marqué, ce qui se lit comme un bug. Le seuil
-  est passé à deux tours de table et la remise en jeu est annoncée.
+- **Retour au centre injustifié.** La pile était remisée dès qu'un tour de table
+  passait sans carte posée : le plateau revenait au coup d'envoi sans but marqué,
+  ce qui se lit comme un bug — et n'était nulle part dans le livret. Supprimé
+  après mesure (voir le point 4).
 - **Le tour du marqueur escamoté.** Page 11 : le joueur qui marque « rejoue
   immédiatement ». Le moteur clôturait pourtant le tour derrière la résolution du
   but, ce qui rendait la main à l'adversaire ; côté interface, un marqueur humain
@@ -174,6 +209,11 @@ distribuée. Le deck jouable compte **108 cartes**.
   répondaient encore et la partie semblait ne jamais s'achever. La fin est
   désormais un état de l'interface : plus rien ne se joue, et le bouton principal
   propose une nouvelle partie.
+- **Ballon inversé après une faute.** Le moteur suivait le résumé de la page 12
+  plutôt que les deux cellules de la page 16, et déplaçait donc le ballon dans
+  exactement les cas inverses : le botteur perdait la position d'attaque que la
+  faute venait de lui donner, et restait sous pression quand il aurait dû être
+  dégagé.
 - **Moteur bâti sur un résumé.** Les premières versions s'appuyaient sur une
   synthèse des règles et non sur le texte, et manquaient l'axe « position du
   ballon » du tableau. Le moteur a été réécrit sur la transcription.

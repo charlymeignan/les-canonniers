@@ -30,9 +30,21 @@ python3 -m http.server 8000
   la pile de jeu, puis on complète sa main à huit cartes.
 - Les cartes jouables sont cerclées d'or ; les autres restent lisibles mais en
   retrait. Le bandeau de consigne rappelle ce que la carte exposée autorise.
+- **Lire une carte.** Le texte imprimé sur le carton d'origine est minuscule : le
+  bouton **Lire** — ou une pression sur une carte injouable, ou sur la carte
+  exposée — ouvre sa fiche, avec ses deux listes de succession au corps du texte
+  courant.
 
 L'écran **Règles** contient un aide-mémoire, la table de succession complète et
 la galerie des 108 cartes avec leurs quantités.
+
+### Installer l'application
+
+Le jeu est une PWA : « Ajouter à l'écran d'accueil » sur iOS, « Installer »
+sur Android et sur Chrome de bureau. Il s'ouvre alors en plein écran, sans barre
+d'adresse, et **fonctionne sans réseau** — un service worker garde en cache la
+page, les styles, les modules et les illustrations. Rien n'est envoyé nulle part :
+il n'y a pas de serveur.
 
 ## Ce que contient le deck
 
@@ -62,7 +74,10 @@ js/ai.js              joueur artificiel
 js/assets-mapping.js  pictogrammes et illustrations SVG
 js/ui.js              rendu et interactions
 js/main.js            point d'entrée
+sw.js                 service worker : installation et jeu hors ligne
+manifest.webmanifest  déclaration d'application installable
 assets/cards/         illustrations optionnelles, qui remplacent les dessins SVG
+assets/icons/         icônes d'application, dessinées par tools/build-icons.py
 tools/scan-cards.mjs  recense ces illustrations et écrit leur manifeste
 ```
 
@@ -79,6 +94,7 @@ node test/simulation.mjs 300    # 300 parties ordinateur contre ordinateur
 node test/ui.test.mjs           # parcours navigateur (serveur requis)
 node test/humain-vs-ia.test.mjs # partie complète pilotée depuis l'interface (serveur requis)
 SEATS=human,human node test/humain-vs-ia.test.mjs   # la même en pass-and-play
+node test/pwa.test.mjs          # installable et jouable hors ligne (serveur requis)
 node test/screenshot.mjs /tmp/shots   # captures mobiles (serveur requis)
 ```
 
@@ -123,7 +139,8 @@ la méthode sont décrits dans
 Le jeu est un site statique : aucune compilation, aucun serveur applicatif.
 
 `tools/build-site.sh` assemble dans `_site/` ce que le navigateur charge
-réellement — `index.html`, `css/`, `js/`, `assets/cards/` — et rien d'autre. Ce
+réellement — `index.html`, `css/`, `js/`, `assets/`, le manifeste et le service
+worker — et rien d'autre. Ce
 détour n'est pas cosmétique : les hébergeurs statiques publient par défaut la
 racine du dépôt, ce qui exposerait `assets/user-files/`, c'est-à-dire le scan du
 livret et les photos du matériel. Ce dossier reste documentation de travail et
@@ -138,8 +155,15 @@ répertoire de sortie `_site`.
 déploie. À activer dans *Settings → Pages → Source : GitHub Actions*. Gratuit
 sur un dépôt public seulement ; sur un dépôt privé il faut un compte payant.
 
-Les chemins du projet sont tous relatifs : le site fonctionne aussi bien à la
-racine d'un domaine que dans un sous-répertoire.
+Les chemins du projet sont tous relatifs, service worker compris : le site
+fonctionne aussi bien à la racine d'un domaine que dans un sous-répertoire, et
+l'installation en application suit le même chemin.
+
+Le service worker sert la coquille **réseau d'abord** : une mise en ligne est
+reprise dès le premier chargement en ligne, sans que personne ait à vider son
+cache. Seules les illustrations et les polices, qui ne changent pas, sont servies
+depuis le cache en priorité. `VERSION` en tête de `sw.js` force au besoin la mise
+à jour d'un appareil déjà équipé.
 
 ## Les règles font foi
 
@@ -152,9 +176,10 @@ tort.
 Le tableau des pages 13 à 16 croise **deux** critères — la carte exposée (et qui
 l'a posée) *et* la position du ballon — et le moteur reproduit les deux axes.
 
-[`docs/regles-implementees.md`](docs/regles-implementees.md) recense les quatre
-points où le passage du livret au code a demandé une décision, dont un seul ajout
-véritable : le déblocage de la pile quand plus personne ne peut enchaîner.
+[`docs/regles-implementees.md`](docs/regles-implementees.md) recense les cinq
+points où le passage du livret au code a demandé une décision — pour l'essentiel
+des endroits où le texte se contredit lui-même. Aucun n'ajoute de règle : rien
+dans le moteur ne vient d'ailleurs que du livret.
 
 ## Sources
 

@@ -49,7 +49,6 @@ function check(cond, message, ctx) {
 let totalTurns = 0;
 let totalGoals = 0;
 let totalCancelled = 0;
-let totalDeadlocks = 0;
 let finished = 0;
 const cardPlayCounts = {};
 
@@ -124,9 +123,9 @@ for (let g = 0; g < GAMES; g++) {
     const live = liveCards();
     stagnant = live < lastLive ? 0 : stagnant + 1;
     lastLive = live;
-    // Une pile bloquée est remise en jeu au bout d'un tour de table ; au-delà
-    // de trois tours de table sans qu'une seule carte quitte le circuit, la
-    // partie est réellement figée et c'est un défaut du moteur.
+    // Chaque tour sans carte posée retire une carte du circuit (défausse,
+    // page 9). Si rien ne bouge pendant trois tours de table, la partie est
+    // réellement figée et c'est un défaut du moteur.
     if (stagnant > state.players.length * 3) {
       check(false, 'partie figée : plus aucune carte ne quitte le circuit', { seed, turn: guard });
       break;
@@ -134,7 +133,6 @@ for (let g = 0; g < GAMES; g++) {
     guard += 1;
   }
 
-  totalDeadlocks += state.history.filter((h) => h.type === 'deadlock-reset').length;
   totalTurns += guard;
   if (state.turnPhase === 'over') finished += 1;
 
@@ -150,7 +148,6 @@ console.log(`  parties menées à terme      ${finished}/${GAMES} (${pct(finishe
 console.log(`  tours joués (moyenne)       ${(totalTurns / GAMES).toFixed(1)}`);
 console.log(`  buts validés (moyenne)      ${(totalGoals / GAMES).toFixed(2)}`);
 console.log(`  buts refusés (total)        ${totalCancelled}`);
-console.log(`  déblocages de pile          ${totalDeadlocks}`);
 
 const played = Object.entries(cardPlayCounts).sort((a, b) => b[1] - a[1]);
 console.log('\n  cartes effectivement posées :');

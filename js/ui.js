@@ -282,11 +282,13 @@ function renderActions() {
   // message de fin refermé et la partie a l'air de ne jamais s'achever.
   if (game.turnPhase === 'over') {
     $('#btn-play').disabled = true;
+    $('#btn-read').disabled = true;
     $('#btn-end').textContent = 'Nouvelle partie';
     return;
   }
   const rienAJouer = handRevealed && legalHandCards(game).length === 0;
   $('#btn-play').disabled = !selectedUid;
+  $('#btn-read').disabled = !selectedUid;
   $('#btn-end').textContent = rienAJouer
     ? 'Se défausser'
     : (game.turnCardsPlayed === 0 ? 'Passer son tour' : 'Fin du tour');
@@ -376,9 +378,6 @@ function finishTurn() {
   selectedUid = null;
   handRevealed = false;
   render();
-  // L'annonce d'abord : openPassScreen() peut afficher la fin de partie, et les
-  // deux se partagent le même bandeau.
-  annoncerRemiseEnJeu();
   openPassScreen();
 }
 
@@ -443,7 +442,6 @@ function runAITurn() {
       aiRunning = false;
       setAIBanner(false);
       render();
-      annoncerRemiseEnJeu();
       openPassScreen();
       return;
     }
@@ -538,24 +536,22 @@ function openButRefuseWindow(holders) {
 }
 
 /**
- * La pile vient-elle d'être remisée faute de suite possible ? Le plateau repart
- * alors au coup d'envoi sans qu'aucun but ait été marqué : sans un mot
- * d'explication, ce retour au centre passe pour un bug.
+ * Fiche de lecture d'une carte. Le texte imprimé sur le carton fait quatre
+ * points et demi une fois la carte à la taille du pouce : fidèle, mais illisible.
+ * On redonne ici la même carte en grand et, surtout, ses deux listes de
+ * succession au corps du texte courant.
  */
-let remisesAnnoncees = 0;
-function annoncerRemiseEnJeu() {
-  if (game.turnPhase === 'over') return false;
-  const total = game.history.filter((h) => h.type === 'deadlock-reset').length;
-  if (total <= remisesAnnoncees) return false;
-  remisesAnnoncees = total;
-  flashMessage(
-    'Situation bloquée',
-    'Personne n\'a pu enchaîner sur la carte exposée pendant deux tours de table. '
-    + 'L\'action est abandonnée : la pile de jeu part à la défausse et le ballon '
-    + 'revient au centre. Aucun but n\'est marqué — on repart sur un coup d\'envoi, '
-    + 'par une passe.',
-    'gold');
-  return true;
+function openCardSheet(cardId) {
+  const def = CARD_DEFS[cardId];
+  if (!def) return;
+  $('#card-sheet-name').textContent = def.name;
+  $('#card-sheet-figure').innerHTML = renderCard(cardId, { large: true });
+  $('#card-sheet-note').textContent = def.subtitle || '';
+  const items = (ids) => ids
+    .map((id) => `<li>${CARD_DEFS[id]?.name ?? id}</li>`).join('');
+  $('#card-sheet-own').innerHTML = items(ownIdsFor(cardId));
+  $('#card-sheet-rival').innerHTML = items(rivalIdsFor(cardId));
+  openOverlay('overlay-card');
 }
 
 function flashMessage(title, body, tone = 'ink') {
@@ -638,7 +634,6 @@ function startGame() {
   selectedUid = null;
   handRevealed = false;
   aiRunning = false;
-  remisesAnnoncees = 0;
   setAIBanner(false);
   showScreen('screen-game');
   render();
@@ -731,12 +726,29 @@ export async function bindUI() {
     if (aiRunning) return;
     const btn = e.target.closest('[data-uid]');
     if (!btn) return;
+    // Une carte injouable ne peut pas être choisie : la toucher, c'est vouloir la
+    // lire. On ouvre sa fiche plutôt que de se contenter d'un refus.
     if (btn.classList.contains('card--muted')) {
-      const def = CARD_DEFS[btn.dataset.card];
-      flashMessage(def.name, 'Cette carte ne peut pas suivre la carte exposée. Consultez la table de succession dans l\'écran Règles.');
+      openCardSheet(btn.dataset.card);
       return;
     }
     selectCard(btn.dataset.uid);
+  });
+
+  // La carte exposée se lit d'une pression, comme celles de la main.
+  const lirePileExposee = () => {
+    const top = game?.pileDeJeu[game.pileDeJeu.length - 1];
+    if (top) openCardSheet(top.cardId);
+  };
+  $('#pile-slot').addEventListener('click', lirePileExposee);
+  $('#pile-slot').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); lirePileExposee(); }
+  });
+
+  $('#btn-read').addEventListener('click', () => {
+    const p = activePlayer(game);
+    const card = p && game.hands[p.id].find((c) => c.uid === selectedUid);
+    if (card) openCardSheet(card.cardId);
   });
 
   $('#btn-play').addEventListener('click', () => {
@@ -760,7 +772,6 @@ export async function bindUI() {
     selectedUid = null;
     handRevealed = false;
     render();
-    annoncerRemiseEnJeu();
     openPassScreen();
   });
 

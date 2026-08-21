@@ -386,12 +386,27 @@ export function changesCamp(state, cardId, teamId) {
   // 3 - « Après une touche, suivie de passe, ou dégagement, ou contre-attaque. »
   if (top?.cardId === 'touche' && ['passe', 'contre_attaque'].includes(cardId)) return true;
 
-  // 4 - « Si l'équipe menacée (le ballon étant alors dans son propre camp) joue
-  //      faute ou double faute, sanctionnée par coup franc. »
-  //   Le changement intervient à la pose du coup franc ou du penalty, quand la
-  //   faute avait été commise par l'équipe qui défendait dans son propre camp.
+  // 4 - Coup franc ou penalty consécutif à une faute. Les deux cellules de la
+  //   page 16 sont explicites, et elles s'opposent :
+  //
+  //     « (faute commise par les défenseurs) Jouez : coup franc indirect. »
+  //        → rien sur le ballon : le botteur attaquait déjà, il continue ;
+  //     « (commises par les attaquants) Jouez : coup franc indirect.
+  //        Le ballon change de camp. »
+  //        → le botteur était sous pression dans son camp ; le coup franc le
+  //          dégage et renverse l'action.
+  //
+  //   Le ballon change donc de camp quand l'équipe lésée est celle qui subissait,
+  //   c'est-à-dire quand le ballon se trouve dans le camp du botteur.
+  //
+  //   Le résumé de la page 12 — « Si l'équipe menacée (le ballon étant alors dans
+  //   son propre camp) joue faute ou double faute, sanctionnée par coup franc » —
+  //   dit l'inverse : il ferait changer le ballon de camp quand c'est le défenseur
+  //   qui a fauté, ce qui retirerait au botteur la position d'attaque que la
+  //   faute vient de lui offrir. Les cellules font foi (voir
+  //   docs/regles-implementees.md, point 1).
   if (['coup_franc', 'penalty'].includes(cardId) && top?.cardId === 'faute') {
-    return state.ballCamp === top.teamId;
+    return state.ballCamp === teamId;
   }
 
   // « Hors-jeu : jouez obligatoirement coup franc indirect. Le ballon change de

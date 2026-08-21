@@ -56,7 +56,6 @@ export function createGame(seats, rng = Math.random) {
     freeKickMode: null,
     consecutiveFautes: 0,
     pendingGoal: null,
-    consecutivePasses: 0,
     turnCardsPlayed: 0,
     turnMustEnd: false,
     turnDiscarded: false,
@@ -355,32 +354,11 @@ export function endTurn(state) {
   const hand = state.hands[p.id];
   if (mustDiscard(state)) return false;
 
-  // Un tour sans aucune carte posée est un "passe". La procédure du livret
-  // s'applique d'abord : le joueur bloqué s'est défaussé (page 9), il complète sa
-  // main au talon, et son voisin tente sa chance à son tour. C'est ainsi que la
-  // situation se dénoue presque toujours.
-  //
-  // Reste le cas où la carte exposée n'offre de suite à personne et où le
-  // renouvellement des mains n'y change rien. Après **deux tours de table
-  // complets** sans qu'une seule carte ait été posée, on remise la pile et le
-  // ballon revient au centre pour un nouveau coup d'envoi. Deux tours de table,
-  // et non un seul : un joueur momentanément démuni ne doit pas suffire à effacer
-  // une action en cours. C'est le seul ajout au livret, documenté dans
-  // docs/regles-implementees.md.
-  if (state.turnCardsPlayed === 0) {
-    state.consecutivePasses += 1;
-    if (state.consecutivePasses >= state.players.length * 2 && state.pileDeJeu.length > 0) {
-      state.defausse.push(...state.pileDeJeu);
-      state.pileDeJeu = [];
-      state.ballCamp = 'centre';
-      state.freeKickMode = null;
-      state.consecutiveFautes = 0;
-      state.consecutivePasses = 0;
-      logEvent(state, { type: 'deadlock-reset' });
-    }
-  } else {
-    state.consecutivePasses = 0;
-  }
+  // Rien de plus à faire quand personne ne peut enchaîner sur la carte exposée :
+  // le joueur bloqué s'est défaussé (page 9), il complète sa main au talon, et
+  // son voisin tente sa chance. Le livret n'offre pas d'autre issue, et il n'en
+  // faut pas d'autre — chaque tour sans carte posée retire une carte du jeu, si
+  // bien que la partie avance toujours vers son épuisement.
 
   while (hand.length < 8 && state.talon.length > 0) hand.push(state.talon.pop());
   state.currentPlayerIndex = nextSeatIndex(state, state.currentPlayerIndex);

@@ -10,9 +10,9 @@ set -euo pipefail
 rm -rf _site
 mkdir -p _site/assets
 
-cp index.html _site/
+cp index.html manifest.webmanifest sw.js _site/
 cp -r css js _site/
-cp -r assets/cards _site/assets/
+cp -r assets/cards assets/icons _site/assets/
 
 # Empêche GitHub Pages de faire passer le site par Jekyll.
 touch _site/.nojekyll

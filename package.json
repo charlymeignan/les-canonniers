@@ -11,8 +11,10 @@
     "test:sim": "node test/simulation.mjs",
     "test:ui": "node test/ui.test.mjs",
     "test:duel": "node test/humain-vs-ia.test.mjs",
+    "test:pwa": "node test/pwa.test.mjs",
     "shots": "node test/screenshot.mjs /tmp/shots",
     "cards:scan": "node tools/scan-cards.mjs",
+    "icons": "python3 tools/build-icons.py",
     "kit": "python3 tools/build-kit.py --archive"
   },
   "devDependencies": {
