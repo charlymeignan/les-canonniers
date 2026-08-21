@@ -386,8 +386,8 @@ function openDiscardPicker() {
   const p = activePlayer(game);
   const bloque = legalHandCards(game).length === 0;
   $('#discard-text').textContent = bloque
-    ? "Aucune de vos cartes ne peut suivre la carte exposée. Le livret (page 9) demande alors de se débarrasser de la carte que vous jugez la moins utile : elle part sur la pile de défausse, hors du jeu, et la main passe au joueur suivant."
-    : "Vous rendez la main sans avoir rien posé. La carte prise au talon vous en fait neuf : déposez-en une sur la pile de défausse pour revenir à huit (page 9).";
+    ? "Aucune de vos cartes ne peut suivre la carte exposée. Débarrassez-vous de celle que vous jugez la moins utile : elle part sur la pile de défausse, hors du jeu, et la main passe au joueur suivant."
+    : "Vous rendez la main sans avoir rien posé. La carte prise au talon vous en fait neuf : déposez-en une sur la pile de défausse pour revenir à huit.";
   $('#discard-grid').innerHTML = game.hands[p.id]
     .map((card) => renderCard(card.cardId)
       .replace('<div class="card', `<button type="button" data-discard="${card.uid}" class="card`)
