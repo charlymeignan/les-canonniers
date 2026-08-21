@@ -34,26 +34,9 @@ contredisent :
 - *« Dégagement doit être précédée d'une INTERCEPTION ou de TOUCHE »*, alors que
   plusieurs cellules l'offrent après une passe.
 
-Une troisième contradiction, plus lourde, concerne le déplacement du ballon après
-une faute. Page 16, les deux cellules sont explicites :
-
-- *« (faute commise par les défenseurs) Jouez : coup franc indirect. »* — rien sur
-  le ballon : le botteur attaquait déjà, il continue ;
-- *« (commises par les attaquants) Jouez : coup franc indirect. **Le ballon change
-  de camp.** »* — le botteur subissait la pression dans son camp, le coup franc
-  l'en dégage.
-
-Le résumé de la page 12 énonce l'inverse : *« Si l'équipe menacée (le ballon étant
-alors dans son propre camp) joue faute ou double faute, sanctionnée par coup
-franc »* — ce qui ferait changer le ballon de camp quand c'est le **défenseur**
-qui a fauté, retirant au botteur la position d'attaque que la faute vient de lui
-offrir.
-
 **Retenu :** les cellules font foi. Elles énumèrent les coups situation par
-situation ; les mentions en tête de ligne et les résumés décrivent le cas général
-et l'esprit de la carte. Appliquer les deux rendrait certaines cellules imprimées
-inatteignables, et pour la faute produirait un déplacement de ballon
-incompréhensible.
+situation ; les mentions en tête de ligne décrivent le cas général et l'esprit de
+la carte. Appliquer les deux rendrait certaines cellules imprimées inatteignables.
 
 ### 2. Une carte qui menace le but rend la main
 
@@ -107,22 +90,38 @@ avec, 1,71 sans**. L'ajout ne servait à rien et faussait le score de moitié. I
 remise à zéro en cours d'action ; le ballon ne revient au centre que sur un but,
 un but refusé, ou au coup d'envoi.
 
-### 5. Qui pose la seconde faute
+### 5. Qui abat une carte d'arbitre, et qui en profite
 
-Le livret consacre une ligne entière aux *« 2 FAUTES coup sur coup »*, avec des
-sanctions propres — coup franc direct, penalty. Mais aucune cellule ne dit qui
-pose la seconde carte : celle de la faute simple n'offre que le coup franc, qui
-revient à l'équipe lésée.
+Quatre cartes désignent une infraction ou un arrêt de jeu — `faute`, `hors-jeu`,
+`sortie de but`, `but refusé`. Pour chacune, les deux cellules du tableau
+s'adressent à des camps opposés, et le livret dit lequel :
 
-**Retenu :** c'est la même équipe qui commet les deux. Les cellules de la double
-faute l'indiquent entre parenthèses — *« (commises par les défenseurs) »*,
-*« (commises par les attaquants) »* — et attribuent donc les deux fautes à un seul
-camp. L'équipe fautive peut ainsi ajouter une seconde faute à la sienne, jamais
-une troisième, et ne botte jamais le coup franc qui la sanctionne.
+- **Faute.** Page 10 : *« l'adversaire blanc qui doit jouer entre temps s'empare
+  du ballon en abattant : soit "faute", ou deux fautes coup sur coup, qui seront
+  suivies d'une sanction : coup franc ou penalty. »* Elle y figure au même rang
+  que *« touche, suivie de dégagement »* et *« contre-attaque »* : ce sont les
+  manières de **reprendre le ballon**. C'est donc l'équipe qui **subit** la faute
+  qui abat la carte, et c'est elle qui botte. Page 7 décrit la séquence d'un seul
+  tenant : *« une carte "faute" exposée sera suivie d'un "coup franc" indirect,
+  lui-même suivi d'un "tir au but", puis d'un "but" »* — un seul camp, du début à
+  la fin. L'équipe sanctionnée, elle, n'a rien à jouer.
+- **Hors-jeu.** *« Ne peut être joué que par les adversaires menacés »* : la
+  défense l'abat et botte le coup franc.
+- **Sortie de but.** *« Raté ! »* s'adresse à l'attaquant, *« Vous devez jouer
+  DÉGAGEMENT »* à la défense qui l'a posée.
+- **But refusé.** *« Si vous avez joué "but refusé" […] jouez "passe", et attaquez
+  à votre tour. »* La cellule se lit sur le poseur, et non sur la position du
+  ballon — lequel est au centre à cet instant, ce qui ne désignerait aucune des
+  deux colonnes.
 
-Sans cette lecture, la double faute serait inatteignable, et avec elle le penalty
-et le coup franc direct : trois cartes imprimées, douze exemplaires, resteraient
-lettre morte.
+Reste la question de la seconde faute : aucune cellule ne dit qui la pose. Elle se
+déduit de la première — c'est le même camp qui réclame deux fois, et les
+parenthèses de la ligne *« 2 FAUTES coup sur coup »* attribuent bien les deux
+fautes à un seul camp fautif, *« (commises par les défenseurs) »* ou
+*« (commises par les attaquants) »*. Le botteur peut donc aggraver sa réclamation
+d'une seconde carte, jamais d'une troisième. Sans cela la double faute serait
+inatteignable, et avec elle le penalty et le coup franc direct : trois cartes
+imprimées, douze exemplaires, resteraient lettre morte.
 
 ## La défausse, seul moteur de fin de partie
 
@@ -149,7 +148,7 @@ distribuée. Le deck jouable compte **108 cartes**.
 
 ## Ce qui est vérifié, et comment
 
-- `test/rules.test.mjs` — 49 tests, chacun citant la cellule de la transcription
+- `test/rules.test.mjs` — 50 tests, chacun citant la cellule de la transcription
   qu'il vérifie. Un échec signifie que le moteur a tort, pas le livret.
 - `test/simulation.mjs` — parties ordinateur contre ordinateur. À chaque tour :
   conservation et unicité des 108 cartes, taille des mains, validité du camp du
@@ -209,11 +208,15 @@ distribuée. Le deck jouable compte **108 cartes**.
   répondaient encore et la partie semblait ne jamais s'achever. La fin est
   désormais un état de l'interface : plus rien ne se joue, et le bouton principal
   propose une nouvelle partie.
-- **Ballon inversé après une faute.** Le moteur suivait le résumé de la page 12
-  plutôt que les deux cellules de la page 16, et déplaçait donc le ballon dans
-  exactement les cas inverses : le botteur perdait la position d'attaque que la
-  faute venait de lui donner, et restait sous pression quand il aurait dû être
-  dégagé.
+- **Sanctions attribuées au mauvais camp.** Le moteur tenait la carte `faute`
+  pour l'aveu de celui qui commet la faute, et donnait donc le coup franc à
+  l'adversaire. Page 10 dit le contraire : on abat la faute pour *« s'emparer du
+  ballon »*, et la sanction est pour soi. Trois cartes suivaient la même lecture
+  inversée — `hors-jeu`, `sortie de but`, `but refusé` — cette dernière ne
+  laissant même plus rien à personne, le ballon étant au centre. Le défaut se
+  voyait sur les cartes elles-mêmes : le texte imprimé annonçait « Coup franc »
+  en noir, c'est-à-dire jouable par son propre camp, quand le moteur le réservait
+  à l'adversaire. Le déplacement du ballon en découlait faux lui aussi.
 - **Moteur bâti sur un résumé.** Les premières versions s'appuyaient sur une
   synthèse des règles et non sur le texte, et manquaient l'axe « position du
   ballon » du tableau. Le moteur a été réécrit sur la transcription.

@@ -148,13 +148,37 @@ test('un arrêt et un coup de chance stoppent aussi le tir', () => {
 });
 
 console.log('\nPage 16 — Fautes, coup franc, penalty');
+// Page 10 : « l'adversaire blanc qui doit jouer entre temps s'empare du ballon en
+// abattant : soit faute, ou deux fautes coup sur coup, qui seront suivies d'une
+// sanction : coup franc ou penalty. » La carte est donc abattue par l'équipe qui
+// SUBIT la faute, et c'est elle qui botte. Page 7 décrit la même séquence d'un
+// seul tenant : « une carte faute exposée sera suivie d'un coup franc indirect,
+// lui-même suivi d'un tir au but, puis d'un but ».
+test('la faute est posée par l’équipe lésée, et c’est elle qui botte', () => {
+  // Blanc abat la faute : Blanc botte, Vert n'a rien.
+  assert.deepEqual(coups('faute', B, B, B, { consecutiveFautes: 1 }),
+    ['coup_franc', 'faute']);
+  assert.deepEqual(coups('faute', B, V, B, { consecutiveFautes: 1 }), [],
+    'l’équipe sanctionnée n’a rien à jouer');
+});
 test('1 seule faute → coup franc indirect, des deux côtés du tableau', () => {
-  assert.deepEqual(coups('faute', B, V, B, { consecutiveFautes: 1 }), ['coup_franc']);
-  assert.deepEqual(coups('faute', B, V, V, { consecutiveFautes: 1 }), ['coup_franc']);
+  const attaque = getLegalCardIds({
+    pileDeJeu: [{ cardId: 'faute', teamId: V }], activeTeamId: V, ballCamp: B,
+    consecutiveFautes: 1,
+  });
+  assert.ok(attaque.legalIds.includes('coup_franc'));
+  assert.equal(attaque.freeKickMode, 'indirect');
+  assert.ok(coups('faute', V, V, V, { consecutiveFautes: 1 }).includes('coup_franc'));
+});
+test('le botteur peut aggraver : une seconde faute, pas une troisième', () => {
+  assert.ok(coups('faute', V, V, B, { consecutiveFautes: 1 }).includes('faute'),
+    '« 2 fautes coup sur coup » suppose qu’une faute puisse en suivre une autre');
+  assert.ok(!coups('faute', V, V, B, { consecutiveFautes: 2 }).includes('faute'),
+    'le livret ne connaît pas la triple faute');
 });
 test('2 fautes coup sur coup, côté attaque → coup franc direct ou penalty', () => {
   const r = getLegalCardIds({
-    pileDeJeu: [{ cardId: 'faute', teamId: B }], activeTeamId: V, ballCamp: B,
+    pileDeJeu: [{ cardId: 'faute', teamId: V }], activeTeamId: V, ballCamp: B,
     consecutiveFautes: 2,
   });
   assert.deepEqual(r.legalIds, ['coup_franc', 'penalty']);
@@ -162,11 +186,8 @@ test('2 fautes coup sur coup, côté attaque → coup franc direct ou penalty', 
 });
 test('2 fautes coup sur coup, côté riposte → coup franc direct seul', () => {
   assert.deepEqual(
-    coups('faute', B, V, V, { consecutiveFautes: 2 }), ['coup_franc']);
-});
-test('l’équipe fautive peut en commettre une seconde, pas une troisième', () => {
-  assert.deepEqual(coups('faute', V, V, B, { consecutiveFautes: 1 }), ['faute']);
-  assert.deepEqual(coups('faute', V, V, B, { consecutiveFautes: 2 }), []);
+    coups('faute', V, V, V, { consecutiveFautes: 2 }), ['coup_franc'],
+    'pas de penalty quand le botteur subissait dans son propre camp');
 });
 test('coup franc indirect : le botteur ne peut pas marquer directement', () => {
   const ids = coups('coup_franc', V, V, B, { freeKickMode: 'indirect' });
@@ -185,11 +206,15 @@ test('penalty : mêmes pouvoirs que le boulet de canon', () => {
 
 console.log('\nPages 15-16 — Cartes de l’arbitre');
 test('hors-jeu : le coup franc revient à l’équipe qui l’a signalé', () => {
-  assert.deepEqual(coups('hors_jeu', V, B, B), ['coup_franc']);
-  assert.deepEqual(coups('hors_jeu', V, V, B), []);
+  // « ne peut être joué que par les adversaires menacés » : c'est la défense qui
+  // l'abat, ballon dans son propre camp, et c'est elle qui botte.
+  assert.deepEqual(coups('hors_jeu', B, B, B), ['coup_franc']);
+  assert.deepEqual(coups('hors_jeu', B, V, B), [], 'l’attaquant signalé n’a rien');
 });
 test('sortie de but : « vous devez jouer DÉGAGEMENT »', () => {
-  assert.deepEqual(coups('sortie_de_but', V, B, B), ['degagement']);
+  // Abattue par la défense sur un tir manqué ; « Raté ! » s'adresse à l'attaquant.
+  assert.deepEqual(coups('sortie_de_but', B, B, B), ['degagement']);
+  assert.deepEqual(coups('sortie_de_but', B, V, B), []);
 });
 test('arrêt : « jouez interception, contre-attaque »', () => {
   assert.deepEqual(coups('arret', V, V, B), ['interception', 'contre_attaque']);
@@ -215,7 +240,11 @@ test('but : « votre seule possibilité : jouer BUT REFUSÉ »', () => {
   assert.deepEqual(r.legalIds, ['but_refuse']);
 });
 test('but refusé : « jouez passe, et attaquez à votre tour »', () => {
-  assert.deepEqual(coups('but_refuse', B, V, V), ['passe']);
+  // La cellule se lit sur le poseur : le ballon est au centre à cet instant, il
+  // ne désignerait aucune des deux colonnes.
+  assert.deepEqual(coups('but_refuse', B, B, 'centre'), ['passe']);
+  assert.deepEqual(coups('but_refuse', B, V, 'centre'), [],
+    '« Décision de l’arbitre : tant pis pour vous ! »');
 });
 
 console.log('\nPage 12 — Mouvements du ballon');
@@ -235,26 +264,23 @@ test('3 - après une touche, suivie de passe, dégagement ou contre-attaque', ()
   assert.ok(changesCamp(pile('touche'), 'degagement', V));
   assert.ok(changesCamp(pile('touche'), 'contre_attaque', V));
 });
-test('4 - coup franc après une faute : les deux cellules de la page 16', () => {
-  // « (faute commise par les défenseurs) Jouez : coup franc indirect. »
-  // Vert attaque (ballon dans le camp blanc), Blanc faute chez lui, Vert botte :
-  // rien n’est dit du ballon, l’attaquant garde sa position.
-  const defenseursFautifs = { pileDeJeu: [{ cardId: 'faute', teamId: B }], ballCamp: B };
+test('4 - coup franc après une faute : le botteur est celui qui a posé la carte', () => {
+  // « (faute commise par les défenseurs) Jouez : coup franc indirect. » Vert
+  // attaque, Blanc faute dans son camp : Vert abat la faute et botte. Rien n’est
+  // dit du ballon — l’attaquant garde la position qu’il avait déjà.
+  const defenseursFautifs = { pileDeJeu: [{ cardId: 'faute', teamId: V }], ballCamp: B };
   assert.ok(!changesCamp(defenseursFautifs, 'coup_franc', V),
     'le botteur attaquait déjà : le ballon ne bouge pas');
 
-  // « (commises par les attaquants) Jouez : coup franc indirect.
-  //   Le ballon change de camp. »
-  // Vert attaque et faute, Blanc botte depuis son propre camp : l’action se
-  // renverse.
-  const attaquantsFautifs = { pileDeJeu: [{ cardId: 'faute', teamId: V }], ballCamp: B };
+  // « (commises par les attaquants) Jouez : coup franc indirect. Le ballon change
+  // de camp. » Vert attaque et faute, Blanc abat la faute et botte depuis son
+  // propre camp : l’action se renverse. C’est mot pour mot le cas 4 de la
+  // page 12 — « si l’équipe menacée (le ballon étant alors dans son propre camp)
+  // joue faute ou double faute, sanctionnée par coup franc ».
+  const attaquantsFautifs = { pileDeJeu: [{ cardId: 'faute', teamId: B }], ballCamp: B };
   assert.ok(changesCamp(attaquantsFautifs, 'coup_franc', B),
     'le botteur subissait la pression : le coup franc le dégage');
   assert.ok(changesCamp(attaquantsFautifs, 'penalty', B), 'idem pour le penalty');
-
-  // Le résumé de la page 12 dit l’inverse ; ce sont les cellules qui font foi.
-  assert.ok(!changesCamp({ pileDeJeu: [{ cardId: 'faute', teamId: V }], ballCamp: V },
-    'coup_franc', B), 'lecture page 12 écartée : voir docs/regles-implementees.md');
 });
 test('l’arrêt vaut dégagement : le ballon change de camp', () => {
   assert.ok(changesCamp(pile('tir_au_but'), 'arret', B));

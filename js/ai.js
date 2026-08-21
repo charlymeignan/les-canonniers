@@ -65,32 +65,42 @@ function scorePlay(cardId, ctx) {
   //    Le hors-jeu passe avant l'arrêt : il annule l'attaque *et* rend le coup
   //    franc à son équipe avec le ballon, là où l'arrêt ne fait que stopper le tir.
   if (ctx.underThreat) {
-    if (cardId === 'hors_jeu') score += 175;
+    if (cardId === 'hors_jeu') score += counts.coup_franc > 0 ? 175 : 60;
     if (cardId === 'arret') score += 150;
-    if (cardId === 'sortie_de_but') score += 110; // le dégagement qui suit rend le ballon
+    if (cardId === 'sortie_de_but') score += counts.degagement > 0 ? 130 : 60;
     if (['interception', 'contre_attaque'].includes(cardId)) score += 70;
-    if (cardId === 'faute') score += 40;          // sanctionné, mais stoppe l'action
   }
 
-  // 5. Reprendre le ballon quand l'adversaire a l'initiative.
+  // 5. Réclamer la faute, c'est s'emparer du ballon (page 10) — mais la sanction
+  //    ne vaut que si l'on tient de quoi la tirer. Une faute sans coup franc en
+  //    main coupe l'action et ne rend rien : l'adversaire n'a plus qu'à se
+  //    défausser, et le carton reste en plan.
+  if (cardId === 'faute') {
+    if (counts.coup_franc > 0) {
+      score += ctx.underThreat ? 120 : 55;
+      // Deux fautes coup sur coup ouvrent le penalty, donc le but direct.
+      if (counts.faute > 1 && counts.penalty > 0 && counts.but > 0) score += 90;
+    } else {
+      score -= 55;
+    }
+  }
+
+  // 6. Reprendre le ballon quand l'adversaire a l'initiative.
   if (!ctx.isOwnTurn) {
     if (cardId === 'interception') score += 45;
     if (cardId === 'contre_attaque') score += 55;
     if (cardId === 'touche') score += 30;
   }
 
-  // 6. Faire circuler quand rien de mieux ne se présente.
+  // 7. Faire circuler quand rien de mieux ne se présente.
   if (cardId === 'passe') score += 12;
   if (cardId === 'degagement') score += 18;
 
-  // 7. Ne pas dilapider les cartes rares pour un coup anodin.
+  // 8. Ne pas dilapider les cartes rares pour un coup anodin.
   score -= (RARITY[cardId] ?? 20) * 0.25;
 
-  // 8. Léger bonus si on possède plusieurs exemplaires : on peut se le permettre.
+  // 9. Léger bonus si on possède plusieurs exemplaires : on peut se le permettre.
   score += Math.min(counts[cardId] ?? 0, 4) * 2;
-
-  // 9. Ne pas ouvrir sur une faute quand on mène l'action : c'est se pénaliser.
-  if (cardId === 'faute' && ctx.isOwnTurn && !ctx.underThreat) score -= 40;
 
   return score;
 }
@@ -160,6 +170,11 @@ export function shouldContinue(state, player, cardsPlayed) {
   }
   if (top.cardId === 'coup_franc' && state.freeKickMode === 'direct') return counts.but > 0;
   if (top.cardId === 'passe') return counts.tir_au_but > 0 || counts.boulet_de_canon > 0;
+  // Une sanction se tire dans la foulée : laisser une faute ou un hors-jeu
+  // exposés sans les convertir, c'est offrir un tour à l'adversaire pour rien.
+  if (top.cardId === 'faute') return counts.coup_franc > 0 || counts.faute > 0;
+  if (top.cardId === 'hors_jeu') return counts.coup_franc > 0;
+  if (top.cardId === 'sortie_de_but') return counts.degagement > 0;
   return false;
 }
 

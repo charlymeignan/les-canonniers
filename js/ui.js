@@ -120,7 +120,12 @@ function ownIdsFor(cardId) {
   const d = SUCCESSION[cardId];
   if (!d) return [];
   if (d.modes) return fusionner(d.modes.indirect.attaque, d.modes.direct.attaque);
-  if (d.split) return fusionner(d.own.attaque, d.own.riposte);
+  // Les sanctions aggravées (double faute) et l'enchaînement de deux fautes
+  // appartiennent au camp qui a posé la carte : ils vont dans la liste noire.
+  if (d.split) {
+    return fusionner(d.own.attaque, d.own.riposte,
+      d.doubleAttaque, d.doubleRiposte, d.chainable);
+  }
   return fusionner(d.attaque);
 }
 
@@ -129,7 +134,7 @@ function rivalIdsFor(cardId) {
   if (!d) return [];
   if (d.modes) return fusionner(d.modes.indirect.riposte, d.modes.direct.riposte);
   if (d.split) return fusionner(d.rival.attaque, d.rival.riposte);
-  return fusionner(d.riposte, d.doubleAttaque);
+  return fusionner(d.riposte);
 }
 
 // ------------------------------------------------------------------- écrans --

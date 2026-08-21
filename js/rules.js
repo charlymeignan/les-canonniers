@@ -108,15 +108,23 @@ export const SUCCESSION = {
   },
 
   sortie_de_but: {
-    attaque: [],                 // « Raté ! »
-    riposte: ['degagement'],     // « Vous devez jouer DÉGAGEMENT »
+    // Abattue par la défense sur un tir manqué : « Raté ! » s'adresse à
+    // l'attaquant, « Vous devez jouer DÉGAGEMENT » à celui qui l'a posée.
+    split: true,
+    own:   { attaque: ['degagement'], riposte: ['degagement'] },
+    rival: { attaque: [], riposte: [] },
     forced: 'degagement',
   },
 
   but_refuse: {
+    // « Si vous avez joué "but refusé", le ballon est remis en jeu : jouez
+    // "passe", et attaquez à votre tour. » La cellule se lit sur le poseur, pas
+    // sur la position du ballon — lequel est au centre à cet instant, ce qui ne
+    // désignerait aucune des deux colonnes.
     special: 'cancel-goal',
-    attaque: [],                 // « Décision de l'arbitre : tant pis pour vous ! »
-    riposte: ['passe'],          // « jouez passe, et attaquez à votre tour »
+    split: true,
+    own:   { attaque: ['passe'], riposte: ['passe'] },
+    rival: { attaque: [], riposte: [] }, // « tant pis pour vous ! »
   },
 
   touche: {
@@ -139,18 +147,38 @@ export const SUCCESSION = {
   },
 
   hors_jeu: {
-    // « ne peut être joué que par les adversaires menacés »
-    attaque: [],                 // « vous a été imposé »
-    riposte: ['coup_franc'],     // « Jouez obligatoirement : Coup franc (indirect) »
+    // « Le HORS-JEU, qui ne peut être joué que par les adversaires menacés, vous
+    // a été imposé » s'adresse à l'attaquant signalé ; « Jouez obligatoirement :
+    // Coup franc (indirect) » à la défense qui l'a posé. C'est donc elle qui
+    // botte — comme pour la faute.
+    split: true,
+    own:   { attaque: ['coup_franc'], riposte: ['coup_franc'] },
+    rival: { attaque: [], riposte: [] },
     forced: 'coup_franc',
     freeKickMode: 'indirect',
   },
 
   faute: {
-    // 1 seule faute → coup franc indirect, des deux côtés du tableau.
-    // 2 fautes coup sur coup → coup franc direct, et penalty côté attaque.
-    attaque: ['coup_franc'],
-    riposte: ['coup_franc'],
+    // La carte est abattue par l'équipe qui SUBIT la faute, et c'est elle qui
+    // botte. Page 10 : « l'adversaire blanc qui doit jouer entre temps
+    // s'empare du ballon en abattant : soit faute, ou deux fautes coup sur
+    // coup, qui seront suivies d'une sanction : coup franc ou penalty ». Elle y
+    // figure au même rang que « touche suivie de dégagement » ou
+    // « contre-attaque » : ce sont les manières de reprendre le ballon.
+    // Page 7 le confirme en décrivant la séquence d'un seul camp : « une carte
+    // faute exposée sera suivie d'un coup franc indirect, lui-même suivi d'un
+    // tir au but, puis d'un but ».
+    //
+    // L'équipe sanctionnée, elle, n'a rien à jouer : la faute lui coupe l'action.
+    split: true,
+    own: {
+      // 1 seule faute → coup franc indirect, quelle que soit la colonne.
+      attaque: ['coup_franc'],
+      riposte: ['coup_franc'],
+    },
+    rival: { attaque: [], riposte: [] },
+    // 2 fautes coup sur coup → coup franc direct, et penalty côté attaque
+    // (« commises par les défenseurs », donc le botteur attaquait déjà).
     doubleAttaque: ['coup_franc', 'penalty'],
     doubleRiposte: ['coup_franc'],
     chainable: 'faute',          // « 2 fautes coup sur coup »
@@ -299,21 +327,19 @@ export function getLegalCardIds(state) {
     };
   }
 
-  // Faute : la sanction revient toujours à l'équipe lésée, et s'aggrave si deux
-  // fautes ont été commises coup sur coup.
+  // Faute : la sanction revient à l'équipe qui a abattu la carte, c'est-à-dire à
+  // celle qui subit la faute (page 10). L'équipe sanctionnée n'a rien à jouer.
   if (top.cardId === 'faute') {
+    if (!parLeurEquipe) return { legalIds: [], reason: 'sanctionne', colonne: col };
     const doublee = state.consecutiveFautes >= 2;
-    if (parLeurEquipe) {
-      // L'équipe fautive peut en commettre une seconde, mais pas une troisième.
-      return doublee
-        ? { legalIds: [], reason: 'rien', colonne: col }
-        : { legalIds: ['faute'], reason: 'seconde-faute', colonne: col };
-    }
-    const ids = doublee
+    const sanction = doublee
       ? (col === 'attaque' ? def.doubleAttaque : def.doubleRiposte)
-      : [def[col][0]];
+      : def.own[col];
+    // Une seconde faute aggrave la sanction ; il n'y en a pas de troisième.
     return {
-      legalIds: [...ids], reason: 'sanction', colonne: col,
+      legalIds: doublee ? [...sanction] : [...sanction, def.chainable],
+      reason: 'sanction',
+      colonne: col,
       freeKickMode: doublee ? 'direct' : 'indirect',
     };
   }
@@ -386,25 +412,16 @@ export function changesCamp(state, cardId, teamId) {
   // 3 - « Après une touche, suivie de passe, ou dégagement, ou contre-attaque. »
   if (top?.cardId === 'touche' && ['passe', 'contre_attaque'].includes(cardId)) return true;
 
-  // 4 - Coup franc ou penalty consécutif à une faute. Les deux cellules de la
-  //   page 16 sont explicites, et elles s'opposent :
+  // 4 - « Si l'équipe menacée (le ballon étant alors dans son propre camp) joue
+  //   faute ou double faute, sanctionnée par coup franc. » L'équipe menacée est
+  //   celle qui abat la carte : elle botte, et le coup franc la dégage.
   //
+  //   Les deux cellules de la page 16 disent la même chose, vues du botteur :
   //     « (faute commise par les défenseurs) Jouez : coup franc indirect. »
-  //        → rien sur le ballon : le botteur attaquait déjà, il continue ;
+  //        → rien sur le ballon, le botteur attaquait déjà ;
   //     « (commises par les attaquants) Jouez : coup franc indirect.
   //        Le ballon change de camp. »
-  //        → le botteur était sous pression dans son camp ; le coup franc le
-  //          dégage et renverse l'action.
-  //
-  //   Le ballon change donc de camp quand l'équipe lésée est celle qui subissait,
-  //   c'est-à-dire quand le ballon se trouve dans le camp du botteur.
-  //
-  //   Le résumé de la page 12 — « Si l'équipe menacée (le ballon étant alors dans
-  //   son propre camp) joue faute ou double faute, sanctionnée par coup franc » —
-  //   dit l'inverse : il ferait changer le ballon de camp quand c'est le défenseur
-  //   qui a fauté, ce qui retirerait au botteur la position d'attaque que la
-  //   faute vient de lui offrir. Les cellules font foi (voir
-  //   docs/regles-implementees.md, point 1).
+  //        → le botteur subissait dans son camp, l'action se renverse.
   if (['coup_franc', 'penalty'].includes(cardId) && top?.cardId === 'faute') {
     return state.ballCamp === teamId;
   }
